@@ -144,7 +144,7 @@ type family Mode a b where
 
 -- | Configuration of tag names.
 --
--- When converted to 'Config Internal' the default values are:
+-- Here are the default names.
 --
 -- >>> pp (def :: Config User)
 -- Config {
@@ -158,7 +158,7 @@ type family Mode a b where
 --   _texHaskellCodeEnd = Just "\\end{code}"
 -- }
 --
--- It's possible to override the default values:
+-- It's possible to override these names.
 --
 -- >>> pp ((def :: Config User) & disable ?~ "off" & enable ?~ "on" & indent ?~ "indent" & dedent ?~ "dedent")
 -- Config {

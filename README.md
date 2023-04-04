@@ -25,13 +25,13 @@ Convert between files in different formats.
 
 [.hs](./testdata/md/test.hs) and [.md](./testdata/md/test.md)
 
-![demo](./README/md-demo-hs-md-preview.png)
+![demo](https://raw.githubusercontent.com/deemp/lima/main/README/md-demo-hs-md-preview.png)
 
 ### TeX
 
 [.hs](./testdata/tex/test.hs) and [.lhs](./testdata/tex/test.lhs) and [.tex](./testdata/tex/test.tex)
 
-![demo](./README/tex-demo-hs-lhs-tex.png)
+![demo](https://raw.githubusercontent.com/deemp/lima/main/README/tex-demo-hs-lhs-tex.png)
 
 ## Ideas
 
@@ -89,8 +89,8 @@ Here's a possible workflow for `Haskell` and `Markdown`:
 Clone this repo and enter `lima`
 
 ```console
-git clone https://github.com/deemp/flakes
-cd flakes/lima
+git clone https://github.com/deemp/lima
+cd lima
 ```
 
 ### cabal
