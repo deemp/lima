@@ -6,7 +6,7 @@
 -- * @document block@ - consecutive lines of a document.
 -- * 'Token' - a representation of a document block as a @Haskell@ type.
 -- * 'Tokens' - a list of 'Token's.
--- * @parser@ - a function that reads a document line by line and converts it to 'Token's. Example: 'hsToTokens'.
+-- * @parser@ - a function that reads a document line by line and converts it to 'Tokens'. Example: 'hsToTokens'.
 -- * @printer@ - a function that converts 'Tokens' to a document. Example: 'hsFromTokens'.
 -- * @tag@ - a marker that affects how 'Tokens' are parsed.
 --
@@ -104,20 +104,24 @@ module Converter (
   texToTokens,
   mdToTokens,
 
+  -- * Helpers
+  mkFromTokens,
+  mkToTokens,
+  parseToken,
+  errorExpectedToken,
+  errorNotEnoughTokens,
+
   -- * Examples
   exampleNonTexTokens',
   exampleNonTexTokens,
   exampleTexTokens,
-
-  -- * Helpers
-  stripEmpties,
-  PrettyPrint (..),
 ) where
 
+import Converter.Internal
 import Data.Char (isAlpha)
-import Data.Data (Data (toConstr), showConstr)
+import Data.Data
 import Data.Default (Default (def))
-import Data.List (dropWhileEnd, intersperse)
+import Data.List (intersperse)
 import Data.List.NonEmpty (NonEmpty ((:|)), fromList, toList, (<|))
 import Data.Text qualified as T
 import GHC.Generics (Generic)
@@ -200,29 +204,6 @@ deriving instance Show (Config User)
 deriving instance Eq (Config User)
 deriving instance Show (Config Internal)
 
-newtype Pretty a = Pretty String
-
-instance Show a => Show (Pretty a) where
-  show :: Pretty a -> String
-  show (Pretty s) = s
-
--- >>> lhsFromTokens def ex
--- "line 1\nline2\n\n% line 3\n\n% line 4\n"
-
--- | A class for prettyprinting data on multiple lines in haddocks.
---
--- It's not meant to be used outside of this library.
-class Show a => PrettyPrint a where
-  pp :: a -> Pretty String
-
-instance PrettyPrint String where
-  pp :: String -> Pretty String
-  pp = Pretty . dropWhileEnd (== '\n')
-
-instance PrettyPrint T.Text where
-  pp :: T.Text -> Pretty String
-  pp = pp . T.unpack
-
 instance PrettyPrint (Config User) where
   pp :: Config User -> Pretty String
   pp (fromInternalConfig . toInternalConfig -> config) =
@@ -295,29 +276,51 @@ data Format
   | -- | @TeX@
     TeX
 
+-- | Show a 'Format' as a file extension.
+--
+-- >>>showFormatExtension Lhs
+-- "lhs"
+showFormatExtension :: Format -> String
+showFormatExtension = \case
+  Hs -> "hs"
+  Md -> "md"
+  Lhs -> "lhs"
+  TeX -> "tex"
+
+-- | Show a 'Format' as a full name.
+--
+-- >>>showFormatName Lhs
+-- "Literate Haskell"
+showFormatName :: Format -> String
+showFormatName = \case
+  Hs -> "Haskell"
+  Md -> "Markdown"
+  Lhs -> "Literate Haskell"
+  TeX -> "TeX"
+
 -- | Internal representation of a document.
 --
--- A printer processes a list of 'Token's one by one.
+-- A printer processes 'Tokens' one by one.
 --
 -- A 'Token' can have:
 --
 -- - Action - how this 'Token' affects the subsequent 'Tokens'.
--- - Target - a type of 'Token's that are affected by this 'Token'.
--- - Range - the nearest 'Token' until which this 'Token' affects the subsequent 'Token's.
+-- - Target - a type of 'Tokens' that are affected by this 'Token'.
+-- - Range - the nearest 'Token' until which this 'Token' affects the subsequent 'Tokens'.
 data Token
   = -- |
     -- - Action: set indentation to @n@.
     --
     -- - Target: 'HaskellCode'.
     --
-    -- - Range: until 'Indent', 'Dedent', or 'Disabled'.
+    -- - Range: 'Indent', 'Dedent', or 'Disabled'.
     Indent {n :: Int}
   | -- |
     -- - Action: set indentation to @0@.
     --
     -- - Target: 'HaskellCode'.
     --
-    -- - Range: until 'Indent', 'Dedent', or 'Disabled'.
+    -- - Range: 'Indent', 'Dedent', or 'Disabled'.
     Dedent
   | -- | A block that should be invisible when rendered outside of @.hs@.
     --
@@ -325,7 +328,7 @@ data Token
     --
     -- - Target: 'HaskellCode'.
     --
-    -- - Range: until 'Indent', 'Dedent', or 'Disabled'.
+    -- - Range: 'Indent', 'Dedent', or 'Disabled'.
     Disabled {manyLines :: [T.Text]}
   | -- | Lines copied verbatim while a parser was in a @Haskell@ code block.
     HaskellCode {manyLines :: [T.Text]}
@@ -352,6 +355,64 @@ instance PrettyPrint (Tokens) where
           $ (zip (show ts) (tail $ show ts))
       )
         <> "\n]"
+
+-- | Select a printer function based on a given format.
+selectFromTokens :: Config User -> Format -> Tokens -> T.Text
+selectFromTokens config format =
+  ( case format of
+      Hs -> hsFromTokens
+      Lhs -> lhsFromTokens
+      Md -> mdFromTokens
+      TeX -> texFromTokens
+  )
+    config
+
+-- | Select a parser function based on a given format.
+selectToTokens :: Config User -> Format -> T.Text -> Tokens
+selectToTokens config format =
+  ( case format of
+      Hs -> hsToTokens
+      Lhs -> lhsToTokens
+      Md -> mdToTokens
+      TeX -> texToTokens
+  )
+    config
+
+-- | Example non-@TeX@ 'Tokens'. See 'exampleTexTokens'.
+--
+-- When printed to a @TeX@ document, these 'Tokens' can't be correctly parsed.
+-- This is because they don't have necessary tags surrounding @Haskell@ code blocks.
+--
+-- >>> pp $ exampleNonTexTokens'
+-- [
+--   Indent {n = 3},
+--   Disabled {manyLines = ["-- What's the answer?"]},
+--   Indent {n = 1},
+--   Indent {n = 2},
+--   Text {someLines = "- Intermediate results" :| []},
+--   HaskellCode {manyLines = ["   b = a 4","   a = const 3"]},
+--   Dedent,
+--   HaskellCode {manyLines = ["answer = b * 14"]},
+--   Comment {someLines = "Hello from comments," :| []},
+--   Comment {someLines = "world!" :| []},
+--   Text {someLines = "world!" :| ["Hello from text,"]},
+--   Text {someLines = "here!" :| ["And from"]}
+-- ]
+exampleNonTexTokens' :: Tokens
+exampleNonTexTokens' =
+  [ Indent 3
+  , Disabled{manyLines = ["-- What's the answer?"]}
+  , Indent 1
+  , Indent 2
+  , Text ("- Intermediate results" :| [])
+  , HaskellCode ["   b = a 4", "   a = const 3"]
+  , Dedent
+  , HaskellCode ["answer = b * 14"]
+  , Comment ("Hello from comments," :| [])
+  , Comment ("world!" :| [])
+  , Text ("world!" :| ["Hello from text,"])
+  , Text ("here!" :| ["And from"])
+  ]
 
 -- | Merge specific consecutive 'Tokens'.
 --
@@ -390,12 +451,12 @@ mergeTokens (t1@Comment{} : t2@Comment{} : ts) = mergeTokens $ Comment{someLines
 mergeTokens (t : ts) = t : mergeTokens ts
 mergeTokens ts = ts
 
--- | Example non-@TeX@ 'Tokens'. See 'exampleTexTokens'.
+-- | Strip empty lines and leading spaces in 'Tokens'.
 --
--- When printed to a @TeX@ document, these 'Tokens' can't be correctly parsed.
--- This is because they don't have necessary tags surrounding @Haskell@ code blocks.
+-- - Remove empty lines in 'Tokens'.
+-- - Shift lines in 'HaskellCode' to the left by the minimal number of leading spaces in nonempty lines.
 --
--- >>> pp $ exampleNonTexTokens'
+-- >>> pp exampleNonTexTokens'
 -- [
 --   Indent {n = 3},
 --   Disabled {manyLines = ["-- What's the answer?"]},
@@ -410,25 +471,8 @@ mergeTokens ts = ts
 --   Text {someLines = "world!" :| ["Hello from text,"]},
 --   Text {someLines = "here!" :| ["And from"]}
 -- ]
-exampleNonTexTokens' :: Tokens
-exampleNonTexTokens' =
-  [ Indent 3
-  , Disabled{manyLines = ["-- What's the answer?"]}
-  , Indent 1
-  , Indent 2
-  , Text ("- Intermediate results" :| [])
-  , HaskellCode ["   b = a 4", "   a = const 3"]
-  , Dedent
-  , HaskellCode ["answer = b * 14"]
-  , Comment ("Hello from comments," :| [])
-  , Comment ("world!" :| [])
-  , Text ("world!" :| ["Hello from text,"])
-  , Text ("here!" :| ["And from"])
-  ]
-
--- | Normalized 'exampleNonTexTokens''.
 --
--- >>>pp $ exampleNonTexTokens
+-- >>> pp $ stripTokens exampleNonTexTokens'
 -- [
 --   Indent {n = 3},
 --   Disabled {manyLines = ["-- What's the answer?"]},
@@ -438,92 +482,23 @@ exampleNonTexTokens' =
 --   HaskellCode {manyLines = ["b = a 4","a = const 3"]},
 --   Dedent,
 --   HaskellCode {manyLines = ["answer = b * 14"]},
---   Comment {someLines = "world!" :| ["","Hello from comments,"]},
---   Text {someLines = "here!" :| ["And from","","world!","Hello from text,"]}
+--   Comment {someLines = "Hello from comments," :| []},
+--   Comment {someLines = "world!" :| []},
+--   Text {someLines = "world!" :| ["Hello from text,"]},
+--   Text {someLines = "here!" :| ["And from"]}
 -- ]
-exampleNonTexTokens :: Tokens
-exampleNonTexTokens = normalizeTokens exampleNonTexTokens'
-
--- | Select a printer function based on a given format.
-selectFromTokens :: Config User -> Format -> Tokens -> T.Text
-selectFromTokens config format =
-  ( case format of
-      Hs -> hsFromTokens
-      Lhs -> lhsFromTokens
-      Md -> mdFromTokens
-      TeX -> texFromTokens
+stripTokens :: Tokens -> Tokens
+stripTokens xs =
+  ( \case
+      Disabled{..} -> Disabled{manyLines = stripEmpties manyLines}
+      HaskellCode{..} ->
+        let ls = stripEmpties manyLines
+         in HaskellCode{manyLines = T.drop (minimum (countSpaces <$> filter (not . T.null) ls)) <$> ls}
+      Text{..} -> Text{someLines = fromList $ stripEmpties (toList someLines)}
+      Comment{..} -> Comment{someLines = fromList $ stripEmpties (toList someLines)}
+      x -> x
   )
-    config
-
--- | Select a parser function based on a given format.
-selectToTokens :: Config User -> Format -> T.Text -> Tokens
-selectToTokens config format =
-  ( case format of
-      Hs -> hsToTokens
-      Lhs -> lhsToTokens
-      Md -> mdToTokens
-      TeX -> texToTokens
-  )
-    config
-
--- | Compose a function that converts a document in one 'Format' to a document in another 'Format'.
-convertTo :: Format -> Format -> Config User -> T.Text -> T.Text
-convertTo a b config src = selectFromTokens config b $ selectToTokens config a src
-
--- | Escaped hash character
-escapedHash :: T.Text
-escapedHash = "\\#"
-
--- | Hash character
-hash :: T.Text
-hash = "#"
-
--- | Drop a prefix of a line with length of a given line
-dropLen :: T.Text -> T.Text -> T.Text
-dropLen x y = T.drop (T.length x) y
-
--- | Check if a list starts with a given list
-startsWith :: T.Text -> T.Text -> Bool
-startsWith = flip T.isPrefixOf
-
--- | Check if a list ends with a given list
-endsWith :: T.Text -> T.Text -> Bool
-endsWith = flip T.isSuffixOf
-
--- | Drop leading spaces and drop at each end of a 'T.Text' the number of characters as in the supplied prefix and suffix.
-stripEnds :: T.Text -> T.Text -> T.Text -> T.Text
-stripEnds prefix suffix x = T.dropEnd (T.length suffix) (dropLen prefix (stripSpaces x))
-
--- | Replace "\\#" with "#" in a 'T.Text' prefix.
-lhsUnescapeHash :: T.Text -> T.Text
-lhsUnescapeHash x = if x `startsWith` escapedHash then hash <> (dropLen escapedHash x) else x
-
--- | Replace "#" with "\\#" in a 'T.Text' prefix.
-lhsEscapeHash :: T.Text -> T.Text
-lhsEscapeHash x = if x `startsWith` hash then escapedHash <> (dropLen hash x) else x
-
--- | State of a parser.
---
--- Only one flag can be enabled when processing a line.
---
--- Flags signify in what document block a converter is at the moment.
-data State = State
-  { inText :: Bool
-  , inHaskellCode :: Bool
-  , inDisabled :: Bool
-  , inComment :: Bool
-  }
-  deriving (Generic)
-
-instance Default State where
-  def :: State
-  def =
-    State
-      { inText = False
-      , inHaskellCode = False
-      , inDisabled = False
-      , inComment = False
-      }
+    <$> xs
 
 -- | 'mergeTokens' and 'stripTokens'.
 --
@@ -543,46 +518,23 @@ instance Default State where
 normalizeTokens :: Tokens -> Tokens
 normalizeTokens tokens = stripTokens $ mergeTokens $ tokens
 
--- | Compose a function from a 'T.Text' to 'Tokens'.
-mkIntoTokens :: (State -> [(Int, T.Text)] -> [Token] -> [Token]) -> T.Text -> Tokens
-mkIntoTokens toTokens xs = normalizeTokens (drop 1 $ reverse $ toTokens def (zip [1 ..] (T.lines xs)) [Dedent])
-
--- | Parse to a token contents of a multiline comment written on a single line.
+-- | Normalized 'exampleNonTexTokens''.
 --
--- Merge consecutive 'Comment's
-parseToken :: Config Internal -> Token -> T.Text -> Int -> Tokens
-parseToken Config{..} prev l lineNumber
-  | l `startsWith` _indent =
-      maybe
-        (error $ "Expected a number at line: " <> show lineNumber)
-        (\x -> [Indent (max 0 x), prev])
-        (readMaybe @Int (T.unpack (dropLen _indent l)))
-  | l == _dedent = [Dedent, prev]
-  | otherwise =
-      case prev of
-        Comment{..} -> [Comment{someLines = l <| someLines}]
-        _ -> [Comment (l :| []), prev]
-
--- | Show error with line number for a token.
-errorExpectedToken :: (Data a1, Show a2, Show a3) => a2 -> a3 -> a1 -> a4
-errorExpectedToken lineNumber lastToken expectedToken =
-  error $
-    ("Wrong state at line: " <> show lineNumber <> ".\n\n")
-      <> ("Please, create an issue in the package repository.\n\n")
-      <> ("Expected last token: " <> constructorName expectedToken <> "\n\n")
-      <> ("Got last token: " <> show lastToken <> "\n\n")
-
--- | Strip the given value from the beginning and the end of a list.
-stripList :: Eq a => a -> [a] -> [a]
-stripList x = dropWhileEnd (== x) . dropWhile (== x)
-
--- | Pad a 'T.Text' with a given number of spaces
-indentN :: Int -> T.Text -> T.Text
-indentN x s = T.concat (replicate x " ") <> s
-
--- | Compose a function from 'Tokens' to a 'T.Text'.
-mkFromTokens :: (Config User -> Tokens -> [T.Text]) -> Config User -> Tokens -> T.Text
-mkFromTokens f' config = (<> "\n") . T.intercalate "\n" . f' config
+-- >>>pp $ exampleNonTexTokens
+-- [
+--   Indent {n = 3},
+--   Disabled {manyLines = ["-- What's the answer?"]},
+--   Indent {n = 1},
+--   Indent {n = 2},
+--   Text {someLines = "- Intermediate results" :| []},
+--   HaskellCode {manyLines = ["b = a 4","a = const 3"]},
+--   Dedent,
+--   HaskellCode {manyLines = ["answer = b * 14"]},
+--   Comment {someLines = "world!" :| ["","Hello from comments,"]},
+--   Text {someLines = "here!" :| ["And from","","world!","Hello from text,"]}
+-- ]
+exampleNonTexTokens :: Tokens
+exampleNonTexTokens = normalizeTokens exampleNonTexTokens'
 
 -- | same as 'exampleNonTexTokens', but with @TeX@-specific tags that make @Haskell@ code blocks correctly parsable.
 --
@@ -619,6 +571,69 @@ exampleTexTokens =
     , Comment ("world!" :| [])
     , Text{someLines = "world!" :| ["Hello from text,"]}
     ]
+
+-- | Compose a function that converts a document in one 'Format' to a document in another 'Format'.
+convertTo :: Format -> Format -> Config User -> T.Text -> T.Text
+convertTo a b config src = selectFromTokens config b $ selectToTokens config a src
+
+-- | State of a parser.
+--
+-- Only one flag can be enabled when processing a line.
+--
+-- Flags signify in what document block a converter is at the moment.
+data State = State
+  { inText :: Bool
+  , inHaskellCode :: Bool
+  , inDisabled :: Bool
+  , inComment :: Bool
+  }
+  deriving (Generic)
+
+instance Default State where
+  def :: State
+  def =
+    State
+      { inText = False
+      , inHaskellCode = False
+      , inDisabled = False
+      , inComment = False
+      }
+
+-- | Compose a function from 'Tokens' to a 'T.Text'.
+mkFromTokens :: (Config User -> Tokens -> [T.Text]) -> Config User -> Tokens -> T.Text
+mkFromTokens f' config = (<> "\n") . T.intercalate "\n" . f' config
+
+-- | Compose a function from a 'T.Text' to 'Tokens'.
+mkToTokens :: (State -> [(Int, T.Text)] -> [Token] -> [Token]) -> T.Text -> Tokens
+mkToTokens toTokens xs = normalizeTokens (drop 1 $ reverse $ toTokens def (zip [1 ..] (T.lines xs)) [Dedent])
+
+-- | Parse to a token contents of a multiline comment written on a single line.
+--
+-- Merge consecutive 'Comment's
+parseToken :: Config Internal -> Token -> T.Text -> Int -> Tokens
+parseToken Config{..} prev l lineNumber
+  | l `startsWith` _indent =
+      maybe
+        (error $ "Expected a number at line: " <> show lineNumber)
+        (\x -> [Indent (max 0 x), prev])
+        (readMaybe @Int (T.unpack (dropLen _indent l)))
+  | l == _dedent = [Dedent, prev]
+  | otherwise =
+      case prev of
+        Comment{..} -> [Comment{someLines = l <| someLines}]
+        _ -> [Comment (l :| []), prev]
+
+-- | Show error with line number for a token.
+errorExpectedToken :: (Data a1, Show a2, Show a3) => a2 -> a3 -> a1 -> a4
+errorExpectedToken lineNumber lastToken expectedToken =
+  error $
+    ("Wrong state at line: " <> show lineNumber <> ".\n\n")
+      <> ("Please, create an issue in the package repository.\n\n")
+      <> ("Expected last token: " <> constructorName expectedToken <> "\n\n")
+      <> ("Got last token: " <> show lastToken <> "\n\n")
+
+errorNotEnoughTokens :: Format -> a
+errorNotEnoughTokens format = error $ "Got not enough tokens when converting 'Tokens' to " <> showFormatName format
 
 -- | Convert 'Tokens' to @TeX@ code.
 --
@@ -682,14 +697,6 @@ exampleTexTokens =
 texFromTokens :: Config User -> Tokens -> T.Text
 texFromTokens = mkFromTokens texFromTokens'
 
--- | Start a @TeX@ comment.
-texComment :: T.Text
-texComment = "%"
-
--- | Start a @TeX@ comment plus a space.
-texCommentSpace :: T.Text
-texCommentSpace = texComment <> " "
-
 -- | Convert 'Tokens' to @TeX@ code.
 --
 -- Each 'Token' becomes a 'T.Text' in a list.
@@ -726,30 +733,6 @@ texFromTokens' (toInternalConfig -> Config{..}) tokens =
       Comment{someLines = t :| ts} -> (curIndent, (prependTexComment <$> (t : ts)) : [] : rs)
   translate _ _ _ = errorNotEnoughTokens TeX
 
-errorNotEnoughTokens :: Format -> a
-errorNotEnoughTokens format = error $ "Got not enough tokens when converting 'Tokens' to " <> showFormatName format
-
--- | Drop spaces at the start and the end of a 'T.Text'.
-stripSpaces :: T.Text -> T.Text
-stripSpaces = T.strip
-
--- | Prepend start of a @TeX@ comment (@'% '@) to a 'T.Text'.
-prependTexComment :: T.Text -> T.Text
-prependTexComment l
-  | l == T.empty = l
-  | otherwise = texCommentSpace <> l
-
--- | Drop start of a @TeX@ comment from a 'T.Text'.
-dropTexComment :: Show a => T.Text -> a -> T.Text
-dropTexComment l lineNumber
-  | l `startsWith` texCommentSpace = dropLen texCommentSpace l
-  | l == T.empty = l
-  | otherwise =
-      error $
-        "Lines in a 'Disabled' block must either be empty or start with '% '\n\n"
-          <> "Note that each 'Disabled' block must have at least one line starting with '% ' and having nonempty text after '% ' "
-          <> ("The line " <> show lineNumber <> " must either be empty or start with '% '")
-
 -- | Convert 'Tokens' to @TeX@ code.
 --
 -- Inverse of 'texFromTokens'.
@@ -759,7 +742,7 @@ dropTexComment l lineNumber
 texToTokens :: Config User -> T.Text -> Tokens
 texToTokens (toInternalConfig -> conf@Config{..}) xs = tokens
  where
-  tokens = mkIntoTokens toTokens xs
+  tokens = mkToTokens toTokens xs
   toTokens :: State -> [(Int, T.Text)] -> Tokens -> Tokens
   toTokens State{..} ((lineNumber, l) : ls) result@(r : rs)
     | inDisabled =
@@ -886,28 +869,6 @@ texToTokens (toInternalConfig -> conf@Config{..}) xs = tokens
 lhsFromTokens :: Config User -> Tokens -> T.Text
 lhsFromTokens config tokens = mkFromTokens lhsFromTokens' config tokens
 
--- | Start a @Literate Haskell@ comment.
-lhsComment :: T.Text
-lhsComment = "%"
-
--- | Start a @Literate Haskell@ comment plus a space.
-lhsCommentSpace :: T.Text
-lhsCommentSpace = lhsComment <> " "
-
--- | Start a @Literate Haskell@ line of @Haskell@ code.
-lhsHsCode :: T.Text
-lhsHsCode = ">"
-
--- | Start a @Literate Haskell@ line of @Haskell@ code plus a space.
-lhsHsCodeSpace :: T.Text
-lhsHsCodeSpace = lhsHsCode <> " "
-
--- | Prepend start of a @TeX@ comment (@'% '@) to a 'T.Text'.
-prependLhsComment :: T.Text -> T.Text
-prependLhsComment l
-  | l == T.empty = l
-  | otherwise = texCommentSpace <> l
-
 -- | Convert 'Tokens' to @Literate Haskell@ code.
 --
 -- Each 'Token' becomes a 'T.Text' in a list.
@@ -944,13 +905,6 @@ lhsFromTokens' (toInternalConfig -> Config{..}) blocks =
       Comment{someLines = t :| ts} -> (curIndent, (prependLhsComment <$> t : ts) : [] : rs)
   translate _ _ _ = errorNotEnoughTokens Lhs
 
--- | Drop start of a @TeX@ comment from a 'T.Text'.
-dropLhsComment :: Show a => T.Text -> a -> T.Text
-dropLhsComment l lineNumber
-  | l `startsWith` lhsCommentSpace = dropLen lhsCommentSpace l
-  | l == T.empty = l
-  | otherwise = error $ "The line " <> show lineNumber <> " must either be empty or start with '% '"
-
 -- | Convert 'Tokens' to @Markdown@ code.
 --
 -- Inverse of 'lhsFromTokens'.
@@ -960,7 +914,7 @@ dropLhsComment l lineNumber
 lhsToTokens :: Config User -> T.Text -> Tokens
 lhsToTokens (toInternalConfig -> conf@Config{..}) xs = tokens
  where
-  tokens = mkIntoTokens toTokens xs
+  tokens = mkToTokens toTokens xs
   toTokens :: State -> [(Int, T.Text)] -> Tokens -> Tokens
   toTokens State{..} ((lineNumber, lhsUnescapeHash -> l) : ls) result@(r : rs)
     | inDisabled =
@@ -1094,26 +1048,6 @@ lhsToTokens (toInternalConfig -> conf@Config{..}) xs = tokens
 mdFromTokens :: Config User -> Tokens -> T.Text
 mdFromTokens = mkFromTokens mdFromTokens'
 
--- | Open a @Markdown@ comment.
-mdCommentOpen :: T.Text
-mdCommentOpen = "<!--"
-
--- | Close a @Markdown@ comment.
-mdCommentClose :: T.Text
-mdCommentClose = "-->"
-
--- | Open a @Markdown@ comment plus a space.
-mdCommentOpenSpace :: T.Text
-mdCommentOpenSpace = mdCommentOpen <> " "
-
--- | A space plus close a @Markdown@ comment.
-mdCommentCloseSpace :: T.Text
-mdCommentCloseSpace = " " <> mdCommentClose
-
--- | Strip comment markers from a 'T.Text'.
-stripMdComment :: T.Text -> T.Text
-stripMdComment = stripEnds mdCommentOpenSpace mdCommentCloseSpace
-
 -- | Convert 'Tokens' to @Haskell@ code.
 --
 -- Each 'Token' becomes a 'T.Text' in a list.
@@ -1136,78 +1070,6 @@ mdFromTokens' (toInternalConfig -> Config{..}) blocks =
         let ts' = t : ts
          in fromTokens curIndent bs $ [mdCommentClose] <> init ts' <> [mdCommentOpenSpace <> last ts'] : res
 
--- | Show the name of a constructor.
-constructorName :: Data a => a -> String
-constructorName x = showConstr (toConstr x)
-
--- | Remove empty lines from the beginning and the end of a list.
-stripEmpties :: [T.Text] -> [T.Text]
-stripEmpties = stripList T.empty
-
-dropEmpties :: [T.Text] -> [T.Text]
-dropEmpties = dropWhile (== T.empty)
-
--- | Check if a line without leading spaces is surrounded by the given 'T.Text's.
-isEnclosedWith :: T.Text -> T.Text -> T.Text -> Bool
-isEnclosedWith start end (stripSpaces -> x) = x `startsWith` start && x `endsWith` end
-
--- | Check if a line is a @Markdown@ comment.
-isMdComment :: T.Text -> Bool
-isMdComment = isEnclosedWith mdCommentOpenSpace mdCommentCloseSpace
-
--- | Count leading spaces in a 'T.Text'.
-countSpaces :: T.Text -> Int
-countSpaces x = T.length $ T.takeWhile (== ' ') x
-
--- | Strip empty lines an leading spaces in 'Tokens'.
---
--- - Remove empty lines in 'Tokens'.
--- - Shift lines in 'HaskellCode' to the left by the minimal number of leading spaces in nonempty lines.
---
--- >>> pp exampleNonTexTokens'
--- [
---   Indent {n = 3},
---   Disabled {manyLines = ["-- What's the answer?"]},
---   Indent {n = 1},
---   Indent {n = 2},
---   Text {someLines = "- Intermediate results" :| []},
---   HaskellCode {manyLines = ["   b = a 4","   a = const 3"]},
---   Dedent,
---   HaskellCode {manyLines = ["answer = b * 14"]},
---   Comment {someLines = "Hello from comments," :| []},
---   Comment {someLines = "world!" :| []},
---   Text {someLines = "world!" :| ["Hello from text,"]},
---   Text {someLines = "here!" :| ["And from"]}
--- ]
---
--- >>> pp $ stripTokens exampleNonTexTokens'
--- [
---   Indent {n = 3},
---   Disabled {manyLines = ["-- What's the answer?"]},
---   Indent {n = 1},
---   Indent {n = 2},
---   Text {someLines = "- Intermediate results" :| []},
---   HaskellCode {manyLines = ["b = a 4","a = const 3"]},
---   Dedent,
---   HaskellCode {manyLines = ["answer = b * 14"]},
---   Comment {someLines = "Hello from comments," :| []},
---   Comment {someLines = "world!" :| []},
---   Text {someLines = "world!" :| ["Hello from text,"]},
---   Text {someLines = "here!" :| ["And from"]}
--- ]
-stripTokens :: Tokens -> Tokens
-stripTokens xs =
-  ( \case
-      Disabled{..} -> Disabled{manyLines = stripEmpties manyLines}
-      HaskellCode{..} ->
-        let ls = stripEmpties manyLines
-         in HaskellCode{manyLines = T.drop (minimum (countSpaces <$> filter (not . T.null) ls)) <$> ls}
-      Text{..} -> Text{someLines = fromList $ stripEmpties (toList someLines)}
-      Comment{..} -> Comment{someLines = fromList $ stripEmpties (toList someLines)}
-      x -> x
-  )
-    <$> xs
-
 -- | Convert 'Tokens' to @Markdown@ code.
 --
 -- Inverse of 'mdFromTokens'.
@@ -1217,7 +1079,7 @@ stripTokens xs =
 mdToTokens :: Config User -> T.Text -> Tokens
 mdToTokens (toInternalConfig -> conf@Config{..}) xs = tokens
  where
-  tokens = mkIntoTokens toTokens xs
+  tokens = mkToTokens toTokens xs
   toTokens :: State -> [(Int, T.Text)] -> Tokens -> Tokens
   toTokens State{..} ((lineNumber, l) : ls) res@(r : rs)
     | inDisabled =
@@ -1363,22 +1225,6 @@ mdToTokens (toInternalConfig -> conf@Config{..}) xs = tokens
 hsFromTokens :: Config User -> Tokens -> T.Text
 hsFromTokens = mkFromTokens hsFromTokens'
 
--- | Open a @Haskell@ multi-line comment.
-hsCommentOpen :: T.Text
-hsCommentOpen = "{-"
-
--- | Open a @Haskell@ multi-line comment plus a space.
-hsCommentOpenSpace :: T.Text
-hsCommentOpenSpace = hsCommentOpen <> " "
-
--- | Close a @Haskell@ multi-line comment.
-hsCommentClose :: T.Text
-hsCommentClose = "-}"
-
--- | A space plus close a @Haskell@ multi-line comment.
-hsCommentCloseSpace :: T.Text
-hsCommentCloseSpace = " " <> hsCommentClose
-
 -- | Convert 'Tokens' to @Haskell@ code.
 --
 -- Each 'Token' becomes a 'T.Text' in a list.
@@ -1406,23 +1252,6 @@ hsFromTokens' (toInternalConfig -> Config{..}) blocks =
           let ts' = t : ts
            in [hsCommentClose] <> init ts' <> [hsCommentOpenSpace <> last ts'] : res
 
--- | Drop leading spaces and drop at each end of a 'T.Text' the number of characters as in the supplied prefix and suffix.
-stripHsComment :: T.Text -> T.Text
-stripHsComment = stripEnds hsCommentOpenSpace hsCommentCloseSpace
-
--- | Check if a line without leading zeros is a multi-line @Haskell@ comment
-isHsComment :: T.Text -> Bool
-isHsComment = isEnclosedWith hsCommentOpenSpace hsCommentCloseSpace
-
--- | Show error with line number for a token.
--- errorEmptyCommentAt :: Int -> String
-errorEmptyCommentAt :: Show a1 => a1 -> a2
-errorEmptyCommentAt lineNumber =
-  error $
-    ("Expected a 'Comment' at line " <> show lineNumber <> ".\n\n")
-      <> "However, there are no characters after '{- '.\n\n"
-      <> "Please, write there something after '{- '."
-
 -- | Convert 'Tokens' to @Haskell@ code.
 --
 -- Inverse of 'hsFromTokens'.
@@ -1432,7 +1261,7 @@ errorEmptyCommentAt lineNumber =
 hsToTokens :: Config User -> T.Text -> Tokens
 hsToTokens (toInternalConfig -> conf@Config{..}) xs = tokens
  where
-  tokens = mkIntoTokens toTokens xs
+  tokens = mkToTokens toTokens xs
   toTokens :: State -> [(Int, T.Text)] -> Tokens -> Tokens
   toTokens State{..} ((lineNumber, l) : ls) res@(r : rs)
     | inText =
@@ -1516,25 +1345,3 @@ hsToTokens (toInternalConfig -> conf@Config{..}) xs = tokens
    where
     errorExpected = error . errorExpectedToken lineNumber r
   toTokens _ _ res = res
-
--- | Show a 'Format' as a file extension.
---
--- >>>showFormatExtension Lhs
--- "lhs"
-showFormatExtension :: Format -> String
-showFormatExtension = \case
-  Hs -> "hs"
-  Md -> "md"
-  Lhs -> "lhs"
-  TeX -> "tex"
-
--- | Show a 'Format' as a full name.
---
--- >>>showFormatName Lhs
--- "Literate Haskell"
-showFormatName :: Format -> String
-showFormatName = \case
-  Hs -> "Haskell"
-  Md -> "Markdown"
-  Lhs -> "Literate Haskell"
-  TeX -> "TeX"
