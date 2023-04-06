@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -fplugin Debug.Breakpoint #-}
 
-import Converter (Config, Format (..), Token (..), Tokens, User, def, exampleNonTexTokens, exampleTexTokens, normalizeTokens, selectFromTokens, selectToTokens, showFormatExtension, showFormatName, stripEmpties, texHaskellCodeEnd, texHaskellCodeStart, toInternalConfig)
+import Converter (Config, Format (..), Token (..), Tokens, User, def, exampleNonTexTokens, exampleTexTokens, normalizeTokens, selectFromTokens, selectToTokens, showFormatExtension, showFormatName, texHaskellCodeEnd, texHaskellCodeStart, toInternalConfig)
+import Converter.Internal (stripEmpties)
 import Data.List.NonEmpty (NonEmpty (..))
 import Data.String.Interpolate (i)
 import Data.Text qualified as T

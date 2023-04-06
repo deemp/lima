@@ -1,6 +1,6 @@
 module Converter.Internal where
 
-import Data.Data ( Data(toConstr), showConstr )
+import Data.Data (Data (toConstr), showConstr)
 import Data.List (dropWhileEnd)
 import Data.Text qualified as T
 
@@ -15,6 +15,9 @@ instance Show a => Show (Pretty a) where
 --
 -- It's not meant to be used outside of this library.
 class Show a => PrettyPrint a where
+  -- | A printing function
+  --
+  -- It's not meant to be used outside of this library.
   pp :: a -> Pretty String
 
 instance PrettyPrint String where

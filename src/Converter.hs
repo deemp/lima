@@ -110,6 +110,7 @@ module Converter (
   parseToken,
   errorExpectedToken,
   errorNotEnoughTokens,
+  pp,
 
   -- * Examples
   exampleNonTexTokens',
@@ -117,7 +118,7 @@ module Converter (
   exampleTexTokens,
 ) where
 
-import Converter.Internal
+import Converter.Internal (Pretty (..), PrettyPrint (..), constructorName, countSpaces, dropEmpties, dropLen, dropLhsComment, dropTexComment, errorEmptyCommentAt, hsCommentClose, hsCommentCloseSpace, hsCommentOpen, hsCommentOpenSpace, indentN, isHsComment, isMdComment, lhsCommentSpace, lhsEscapeHash, lhsHsCodeSpace, lhsUnescapeHash, mdCommentClose, mdCommentCloseSpace, mdCommentOpenSpace, prependLhsComment, prependTexComment, startsWith, stripEmpties, stripHsComment, stripMdComment, stripSpaces, texCommentSpace)
 import Data.Char (isAlpha)
 import Data.Data
 import Data.Default (Default (def))
