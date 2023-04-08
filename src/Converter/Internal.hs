@@ -72,6 +72,7 @@ constructorName x = showConstr (toConstr x)
 stripEmpties :: [T.Text] -> [T.Text]
 stripEmpties = stripList T.empty
 
+-- | Drop leading empty strings
 dropEmpties :: [T.Text] -> [T.Text]
 dropEmpties = dropWhile (== T.empty)
 
@@ -82,6 +83,16 @@ isEnclosedWith start end (stripSpaces -> x) = x `startsWith` start && x `endsWit
 -- | Count leading spaces in a 'T.Text'.
 countSpaces :: T.Text -> Int
 countSpaces x = T.length $ T.takeWhile (== ' ') x
+
+-- | Show error with line number for a token.
+-- errorEmptyCommentAt :: Int -> String
+errorEmptyCommentAt :: Show a1 => a1 -> a2
+errorEmptyCommentAt lineNumber =
+  error $
+    ("Expected a 'Comment' at line " <> show lineNumber <> ".\n\n")
+      <> "However, there are no characters after '{- '.\n\n"
+      <> "Please, write there something after '{- '."
+
 
 ------
 -- TeX
@@ -204,12 +215,3 @@ stripHsComment = stripEnds hsCommentOpenSpace hsCommentCloseSpace
 -- | Check if a line without leading zeros is a multi-line @Haskell@ comment
 isHsComment :: T.Text -> Bool
 isHsComment = isEnclosedWith hsCommentOpenSpace hsCommentCloseSpace
-
--- | Show error with line number for a token.
--- errorEmptyCommentAt :: Int -> String
-errorEmptyCommentAt :: Show a1 => a1 -> a2
-errorEmptyCommentAt lineNumber =
-  error $
-    ("Expected a 'Comment' at line " <> show lineNumber <> ".\n\n")
-      <> "However, there are no characters after '{- '.\n\n"
-      <> "Please, write there something after '{- '."

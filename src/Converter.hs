@@ -100,10 +100,10 @@ module Converter (
   texFromTokens',
 
   -- * Parsers
-  lhsToTokens,
   hsToTokens,
-  texToTokens,
+  lhsToTokens,
   mdToTokens,
+  texToTokens,
 
   -- * Helpers
   mkFromTokens,
@@ -675,10 +675,11 @@ errorNotEnoughTokens format = error $ "Got not enough tokens when converting 'To
 --     - 'Dedent' ~ @'% LIMA_DEDENT'@.
 --     - 'Disabled' ~ @'% LIMA_DISABLE'@ and @'% LIMA_ENABLE'@ and lines between them.
 --     - 'CommentSingleLine' ~ a line starting with @'% SINGLE_LINE '@.
---     
+--
 --         @
 --         % SINGLE_LINE line
 --         @
+--
 --     - 'Comment' ~ consecutive lines, either empty or starting with @'% '@.
 --
 --         @
@@ -695,6 +696,7 @@ errorNotEnoughTokens format = error $ "Got not enough tokens when converting 'To
 --
 --         - Inside a 'Token', code will be shifted to the left. See 'normalizeTokens'.
 --         - When printing the 'Tokens', code will be indented according to previous 'Tokens'.
+--
 --     - 'Text' ~ other lines.
 --
 -- === __Example__
@@ -776,55 +778,6 @@ texFromTokens' (toConfigInternal -> Config{..}) tokens =
 --
 -- >>> (texToTokens def $ texFromTokens def exampleTexTokens) == exampleTexTokens
 -- True
---
--- >>> pp $ texFromTokens def exampleTexTokens
--- % LIMA_INDENT 3
--- <BLANKLINE>
--- % LIMA_DISABLE
--- <BLANKLINE>
--- % -- What's the answer?
--- <BLANKLINE>
--- % LIMA_ENABLE
--- <BLANKLINE>
--- % LIMA_INDENT 1
--- <BLANKLINE>
--- % LIMA_INDENT 2
--- <BLANKLINE>
--- Intermediate results
--- <BLANKLINE>
--- \begin{code}
---   a = const 3
---   b = a 4
--- \end{code}
--- <BLANKLINE>
--- % LIMA_DEDENT
--- <BLANKLINE>
--- \begin{code}
--- answer = b * 14
--- \end{code}
--- <BLANKLINE>
--- % Hello from comments,
--- <BLANKLINE>
--- % world!
--- <BLANKLINE>
--- % SINGLE_LINE Comment on a single line.
---
--- >>> pp $ texToTokens def $ texFromTokens def exampleTexTokens
--- [
---   Indent {n = 3},
---   Disabled {manyLines = ["-- What's the answer?"]},
---   Indent {n = 1},
---   Indent {n = 2},
---   Text {someLines = "\\begin{code}" :| ["","Intermediate results"]},
---   HaskellCode {manyLines = ["b = a 4","a = const 3"]},
---   Text {someLines = "\\end{code}" :| []},
---   Dedent,
---   Text {someLines = "\\begin{code}" :| []},
---   HaskellCode {manyLines = ["answer = b * 14"]},
---   Text {someLines = "\\end{code}" :| []},
---   Comment {someLines = "world!" :| ["","Hello from comments,"]},
---   CommentSingleLine {someLine = "Comment on a single line."}
--- ]
 texToTokens :: Config User -> T.Text -> Tokens
 texToTokens (toConfigInternal -> conf@Config{..}) xs = tokens
  where
@@ -898,11 +851,13 @@ texToTokens (toConfigInternal -> conf@Config{..}) xs = tokens
 --     - 'Disabled' ~ Lines between and including @'% LIMA_DISABLE'@ and @'% LIMA_ENABLE'@.
 --
 --         - There must be at least one nonempty line between these tags.
+--
 --     - 'CommentSingleLine' ~ a line starting with @'% SINGLE_LINE '@.
--- 
+--
 --         @
 --         % SINGLE_LINE line
 --         @
+--
 --     - 'Comment' ~ consecutive lines, either empty or starting with @'% '@.
 --
 --         @
@@ -924,6 +879,7 @@ texToTokens (toConfigInternal -> conf@Config{..}) xs = tokens
 --
 --         - Inside a 'Token', code is shifted to the left. See 'normalizeTokens'.
 --         - During printing, code is indented according to previous 'Tokens'.
+--
 --     - 'Text' ~ other lines.
 --
 -- === __Example__
@@ -1075,11 +1031,13 @@ lhsToTokens (toConfigInternal -> conf@Config{..}) xs = tokens
 --         a2 = 2
 --         LIMA_ENABLE --\>
 --         @
+--
 --     - 'CommentSingleLine' ~ a line starting with @'<!-- '@ and ending with @' -->'@.
--- 
+--
 --         @
 --         <!-- line -->
 --         @
+--
 --     - 'Comment' ~ a multiline comment starting with @'<!-- {text}'@, where @{text}@ is nonempty text.
 --
 --         @
@@ -1099,10 +1057,6 @@ lhsToTokens (toConfigInternal -> conf@Config{..}) xs = tokens
 --         @
 --
 --     - 'Text' ~ other lines.
---
---         @
---         Hello, world!
---         @
 --
 -- === __Example__
 --
@@ -1264,6 +1218,7 @@ mdToTokens (toConfigInternal -> conf@Config{..}) xs = tokens
 --
 --         {- LIMA_ENABLE -}
 --         @
+--
 --     - 'Text' ~ a multiline comment starting with @'{-\\n'@ and ending with @'\\n-}'@.
 --
 --         @
@@ -1274,12 +1229,14 @@ mdToTokens (toConfigInternal -> conf@Config{..}) xs = tokens
 --
 --         - Consecutive 'Text's are merged into a single 'Text'.
 --         - There must be at list one nonempty line inside this comment.
+--
 --     - 'CommentSingleLine' ~ a multiline comment on a single line.
--- 
+--
 --         @
 --         {- line -}
 --         @
---     - 'Comment' ~ a multiline comment starting with @'{- <text>'@, where @<text>@ is nonempty text, and ending with @\\n-}@
+--
+--     - 'Comment' ~ a multiline comment starting with @'{- TEXT'@, where @TEXT@ is nonempty text, and ending with @\\n-}@
 --
 --         @
 --         {- line 1
@@ -1289,11 +1246,7 @@ mdToTokens (toConfigInternal -> conf@Config{..}) xs = tokens
 --
 --         - Consecutive 'Comment's are merged into a single 'Comment'.
 --
---     - Other lines ~ 'HaskellCode'.
---
---         @
---         a = 42
---         @
+--     - 'HaskellCode' ~ other lines.
 --
 -- === __Example__
 --
