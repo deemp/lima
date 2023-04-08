@@ -1,4 +1,6 @@
-[ Disabled
+[ Indent
+    { n = 3 }
+, Disabled
     { manyLines = [ "-- What's the answer?" ] }
 , Indent
     { n = 1 }
@@ -31,6 +33,6 @@
         , "Hello from comments,"
         ]
     }
-, Text
-    { someLines = "world!" :| [ "Hello from text," ] }
+, CommentSingleLine
+    { someLine = "Comment on a single line." }
 ]

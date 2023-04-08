@@ -1,3 +1,5 @@
+% LIMA_INDENT 3
+
 % LIMA_DISABLE
 
 % -- What's the answer?
@@ -25,5 +27,4 @@ Intermediate results
 
 % world!
 
-Hello from text,
-world!
+% SINGLE_LINE Comment on a single line.

@@ -48,7 +48,6 @@ Convert between files in different formats.
 - The `lima` library provides a parser and a printer for each supported format.
 - A composition of a printer after a parser produces a converter.
 - Such a converter is usually invertible for two formatted documents.
-  - `TeX` format requires special tags surrounding the `Haskell` code blocks for this property to hold.
 
 ## Setup
 

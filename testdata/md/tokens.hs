@@ -23,11 +23,11 @@
         , "Hello from comments,"
         ]
     }
+, CommentSingleLine
+    { someLine = "Comment on a single line." }
 , Text
-    { someLines = "here!" :|
-        [ "And from"
-        , ""
-        , "world!"
+    { someLines = "world!" :|
+        [ ""
         , "Hello from text,"
         ]
     }

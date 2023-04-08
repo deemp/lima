@@ -56,8 +56,7 @@ module Converter (
   Internal,
   Config (..),
   def,
-  toInternalConfig,
-  fromInternalConfig,
+  toConfigInternal,
 
   -- ** Lenses
   disable,
@@ -68,6 +67,8 @@ module Converter (
   mdHaskellCodeEnd,
   texHaskellCodeStart,
   texHaskellCodeEnd,
+  texSingleLineCommentStart,
+  lhsSingleLineCommentStart,
 
   -- * microlens
   (&),
@@ -107,7 +108,7 @@ module Converter (
   -- * Helpers
   mkFromTokens,
   mkToTokens,
-  parseToken,
+  parseLineToToken,
   errorExpectedToken,
   errorNotEnoughTokens,
   pp,
@@ -120,13 +121,13 @@ module Converter (
 
 import Converter.Internal (Pretty (..), PrettyPrint (..), constructorName, countSpaces, dropEmpties, dropLen, dropLhsComment, dropTexComment, errorEmptyCommentAt, hsCommentClose, hsCommentCloseSpace, hsCommentOpen, hsCommentOpenSpace, indentN, isHsComment, isMdComment, lhsCommentSpace, lhsEscapeHash, lhsHsCodeSpace, lhsUnescapeHash, mdCommentClose, mdCommentCloseSpace, mdCommentOpenSpace, prependLhsComment, prependTexComment, startsWith, stripEmpties, stripHsComment, stripMdComment, stripSpaces, texCommentSpace)
 import Data.Char (isAlpha)
-import Data.Data
+import Data.Data (Data)
 import Data.Default (Default (def))
 import Data.List (intersperse)
-import Data.List.NonEmpty (NonEmpty ((:|)), fromList, toList, (<|))
+import Data.List.NonEmpty as NonEmpty (NonEmpty ((:|)), fromList, init, last, toList, (<|))
 import Data.Text qualified as T
 import GHC.Generics (Generic)
-import Lens.Micro (non, (&), (?~), (^.), (^?))
+import Lens.Micro (non, to, (&), (?~), (^.))
 import Lens.Micro.TH (makeLenses)
 import Text.Read (readMaybe)
 import Text.Show qualified as T
@@ -143,59 +144,71 @@ type Internal = 'Internal
 type User = 'User
 
 -- | Calculates the mode for data.
-type family Mode a b where
-  Mode User b = Maybe b
-  Mode Internal b = b
+type family Mode a where
+  Mode User = Maybe String
+  Mode Internal = T.Text
 
 -- | Configuration of tag names.
 --
--- Here are the default names.
+-- The default values of @Config User@ are all 'Nothing's.
+--
+-- Inside the library functions, @Config User@ is converted to @Config Internal@.
+--
+-- The below examples show the names from @Config Internal@.
 --
 -- >>> pp (def :: Config User)
 -- Config {
---   _disable = Just "LIMA_DISABLE",
---   _enable = Just "LIMA_ENABLE",
---   _indent = Just "LIMA_INDENT",
---   _dedent = Just "LIMA_DEDENT",
---   _mdHaskellCodeStart = Just "```haskell",
---   _mdHaskellCodeEnd = Just "```",
---   _texHaskellCodeStart = Just "\\begin{code}",
---   _texHaskellCodeEnd = Just "\\end{code}"
+--   _disable = "LIMA_DISABLE",
+--   _enable = "LIMA_ENABLE",
+--   _indent = "LIMA_INDENT",
+--   _dedent = "LIMA_DEDENT",
+--   _mdHaskellCodeStart = "```haskell",
+--   _mdHaskellCodeEnd = "```",
+--   _texHaskellCodeStart = "\\begin{code}",
+--   _texHaskellCodeEnd = "\\end{code}",
+--   _texSingleLineCommentStart = "SINGLE_LINE ",
+--   _lhsSingleLineCommentStart = "SINGLE_LINE "
 -- }
 --
 -- It's possible to override these names.
 --
 -- >>> pp ((def :: Config User) & disable ?~ "off" & enable ?~ "on" & indent ?~ "indent" & dedent ?~ "dedent")
 -- Config {
---   _disable = Just "off",
---   _enable = Just "on",
---   _indent = Just "indent",
---   _dedent = Just "dedent",
---   _mdHaskellCodeStart = Just "```haskell",
---   _mdHaskellCodeEnd = Just "```",
---   _texHaskellCodeStart = Just "\\begin{code}",
---   _texHaskellCodeEnd = Just "\\end{code}"
+--   _disable = "off",
+--   _enable = "on",
+--   _indent = "indent",
+--   _dedent = "dedent",
+--   _mdHaskellCodeStart = "```haskell",
+--   _mdHaskellCodeEnd = "```",
+--   _texHaskellCodeStart = "\\begin{code}",
+--   _texHaskellCodeEnd = "\\end{code}",
+--   _texSingleLineCommentStart = "SINGLE_LINE ",
+--   _lhsSingleLineCommentStart = "SINGLE_LINE "
 -- }
 data Config (a :: Mode') = Config
-  { _disable :: Mode a T.Text
+  { _disable :: Mode a
   -- ^
   -- Make parser ignore tags and just copy the following lines verbatim.
   --
   -- Set indentation to @0@.
-  , _enable :: Mode a T.Text
+  , _enable :: Mode a
   -- ^ Stop parser from ignoring tags.
-  , _indent :: Mode a T.Text
+  , _indent :: Mode a
   -- ^ Set code indentation to a given 'Int'.
-  , _dedent :: Mode a T.Text
+  , _dedent :: Mode a
   -- ^ Set code indentation to @0@.
-  , _mdHaskellCodeStart :: Mode a T.Text
+  , _mdHaskellCodeStart :: Mode a
   -- ^ Mark the start of a @Haskell@ code block in @Markdown@.
-  , _mdHaskellCodeEnd :: Mode a T.Text
+  , _mdHaskellCodeEnd :: Mode a
   -- ^ Mark the end of a @Haskell@ code block in @Markdown@.
-  , _texHaskellCodeStart :: Mode a T.Text
+  , _texHaskellCodeStart :: Mode a
   -- ^ Mark the start of a @Haskell@ code block in @TeX@.
-  , _texHaskellCodeEnd :: Mode a T.Text
+  , _texHaskellCodeEnd :: Mode a
   -- ^ Mark the end of a @Haskell@ code block in @TeX@.
+  , _texSingleLineCommentStart :: Mode a
+  -- ^ Mark start of a comment that must be single-line.
+  , _lhsSingleLineCommentStart :: Mode a
+  -- ^ Mark start of a comment that must be single-line
   }
   deriving (Generic)
 
@@ -207,7 +220,7 @@ deriving instance Show (Config Internal)
 
 instance PrettyPrint (Config User) where
   pp :: Config User -> Pretty String
-  pp (fromInternalConfig . toInternalConfig -> config) =
+  pp (toConfigInternal -> config) =
     pp $
       ( concatMap
           ( \(a, b) ->
@@ -232,38 +245,32 @@ instance Default (Config Internal) where
     _mdHaskellCodeEnd = "```"
     _texHaskellCodeStart = "\\begin{code}"
     _texHaskellCodeEnd = "\\end{code}"
+    _texSingleLineCommentStart = "SINGLE_LINE"
+    _lhsSingleLineCommentStart = "SINGLE_LINE"
 
--- | Make a user 'Config' with default values from an internal 'Config'.
-fromInternalConfig :: Config Internal -> Config User
-fromInternalConfig conf = Config{..}
- where
-  _disable = conf ^? disable
-  _enable = conf ^? enable
-  _indent = conf ^? indent
-  _dedent = conf ^? dedent
-  _mdHaskellCodeStart = conf ^? mdHaskellCodeStart
-  _mdHaskellCodeEnd = conf ^? mdHaskellCodeEnd
-  _texHaskellCodeStart = conf ^? texHaskellCodeStart
-  _texHaskellCodeEnd = conf ^? texHaskellCodeEnd
-
-instance Default (Config User) where
-  def :: Config User
-  def = fromInternalConfig def
+deriving instance Default (Config User)
 
 -- | Convert a user 'Config' to an internal 'Config' with user-supplied values.
-toInternalConfig :: Config User -> Config Internal
-toInternalConfig conf =
+--
+-- It's important to do this conversion at a single entrypoint.
+--
+-- Otherwise, repeated conversions will accumulate changes such as appended spaces.
+toConfigInternal :: Config User -> Config Internal
+toConfigInternal conf =
   Config
-    { _disable = conf ^. disable . non _disable
-    , _enable = conf ^. enable . non _enable
-    , _indent = conf ^. indent . non _indent
-    , _dedent = conf ^. dedent . non _dedent
-    , _mdHaskellCodeStart = conf ^. mdHaskellCodeStart . non _mdHaskellCodeStart
-    , _mdHaskellCodeEnd = conf ^. mdHaskellCodeEnd . non _mdHaskellCodeEnd
-    , _texHaskellCodeStart = conf ^. texHaskellCodeStart . non _texHaskellCodeStart
-    , _texHaskellCodeEnd = conf ^. texHaskellCodeEnd . non _texHaskellCodeEnd
+    { _disable = l disable _disable
+    , _enable = l enable _enable
+    , _indent = l indent _indent
+    , _dedent = l dedent _dedent
+    , _mdHaskellCodeStart = l mdHaskellCodeStart _mdHaskellCodeStart
+    , _mdHaskellCodeEnd = l mdHaskellCodeEnd _mdHaskellCodeEnd
+    , _texHaskellCodeStart = l texHaskellCodeStart _texHaskellCodeStart
+    , _texHaskellCodeEnd = l texHaskellCodeEnd _texHaskellCodeEnd
+    , _texSingleLineCommentStart = (l texSingleLineCommentStart _texSingleLineCommentStart) <> " "
+    , _lhsSingleLineCommentStart = (l lhsSingleLineCommentStart _lhsSingleLineCommentStart) <> " "
     }
  where
+  l a b = conf ^. a . to (T.pack <$>) . non b
   Config{..} = def @(Config Internal)
 
 -- | A format of a document.
@@ -276,6 +283,7 @@ data Format
     Md
   | -- | @TeX@
     TeX
+  deriving (Eq)
 
 -- | Show a 'Format' as a file extension.
 --
@@ -337,6 +345,10 @@ data Token
     Text {someLines :: NonEmpty T.Text}
   | -- | Lines copied verbatim while a parser was in a comment block.
     Comment {someLines :: NonEmpty T.Text}
+  | -- | A line of a comment that must be kept on a single-line.
+    --
+    -- E.g., {- FOURMOLU_DISABLE -} from a @.hs@.
+    CommentSingleLine {someLine :: T.Text}
   deriving (Show, Data, Eq)
 
 -- | A list of 'Token's.
@@ -396,8 +408,9 @@ selectToTokens config format =
 --   HaskellCode {manyLines = ["answer = b * 14"]},
 --   Comment {someLines = "Hello from comments," :| []},
 --   Comment {someLines = "world!" :| []},
---   Text {someLines = "world!" :| ["Hello from text,"]},
---   Text {someLines = "here!" :| ["And from"]}
+--   CommentSingleLine {someLine = "Comment on a single line."},
+--   Text {someLines = "Hello from text," :| []},
+--   Text {someLines = "world!" :| []}
 -- ]
 exampleNonTexTokens' :: Tokens
 exampleNonTexTokens' =
@@ -411,8 +424,9 @@ exampleNonTexTokens' =
   , HaskellCode ["answer = b * 14"]
   , Comment ("Hello from comments," :| [])
   , Comment ("world!" :| [])
-  , Text ("world!" :| ["Hello from text,"])
-  , Text ("here!" :| ["And from"])
+  , CommentSingleLine ("Comment on a single line.")
+  , Text ("Hello from text," :| [])
+  , Text ("world!" :| [])
   ]
 
 -- | Merge specific consecutive 'Tokens'.
@@ -429,8 +443,9 @@ exampleNonTexTokens' =
 --   HaskellCode {manyLines = ["answer = b * 14"]},
 --   Comment {someLines = "Hello from comments," :| []},
 --   Comment {someLines = "world!" :| []},
---   Text {someLines = "world!" :| ["Hello from text,"]},
---   Text {someLines = "here!" :| ["And from"]}
+--   CommentSingleLine {someLine = "Comment on a single line."},
+--   Text {someLines = "Hello from text," :| []},
+--   Text {someLines = "world!" :| []}
 -- ]
 --
 -- >>> pp $ mergeTokens exampleNonTexTokens'
@@ -444,11 +459,13 @@ exampleNonTexTokens' =
 --   Dedent,
 --   HaskellCode {manyLines = ["answer = b * 14"]},
 --   Comment {someLines = "world!" :| ["","Hello from comments,"]},
---   Text {someLines = "here!" :| ["And from","","world!","Hello from text,"]}
+--   CommentSingleLine {someLine = "Comment on a single line."},
+--   Text {someLines = "world!" :| ["","Hello from text,"]}
 -- ]
 mergeTokens :: Tokens -> Tokens
 mergeTokens (t1@Text{} : t2@Text{} : ts) = mergeTokens $ Text{someLines = someLines t2 <> (T.empty <| someLines t1)} : ts
-mergeTokens (t1@Comment{} : t2@Comment{} : ts) = mergeTokens $ Comment{someLines = someLines t2 <> (T.empty <| someLines t1)} : ts
+mergeTokens (Comment{someLines = ls1} : Comment{someLines = ls2} : ts) =
+  mergeTokens $ Comment{someLines = ls2 <> (T.empty <| ls1)} : ts
 mergeTokens (t : ts) = t : mergeTokens ts
 mergeTokens ts = ts
 
@@ -469,8 +486,9 @@ mergeTokens ts = ts
 --   HaskellCode {manyLines = ["answer = b * 14"]},
 --   Comment {someLines = "Hello from comments," :| []},
 --   Comment {someLines = "world!" :| []},
---   Text {someLines = "world!" :| ["Hello from text,"]},
---   Text {someLines = "here!" :| ["And from"]}
+--   CommentSingleLine {someLine = "Comment on a single line."},
+--   Text {someLines = "Hello from text," :| []},
+--   Text {someLines = "world!" :| []}
 -- ]
 --
 -- >>> pp $ stripTokens exampleNonTexTokens'
@@ -485,8 +503,9 @@ mergeTokens ts = ts
 --   HaskellCode {manyLines = ["answer = b * 14"]},
 --   Comment {someLines = "Hello from comments," :| []},
 --   Comment {someLines = "world!" :| []},
---   Text {someLines = "world!" :| ["Hello from text,"]},
---   Text {someLines = "here!" :| ["And from"]}
+--   CommentSingleLine {someLine = "Comment on a single line."},
+--   Text {someLines = "Hello from text," :| []},
+--   Text {someLines = "world!" :| []}
 -- ]
 stripTokens :: Tokens -> Tokens
 stripTokens xs =
@@ -514,7 +533,8 @@ stripTokens xs =
 --   Dedent,
 --   HaskellCode {manyLines = ["answer = b * 14"]},
 --   Comment {someLines = "world!" :| ["","Hello from comments,"]},
---   Text {someLines = "here!" :| ["And from","","world!","Hello from text,"]}
+--   CommentSingleLine {someLine = "Comment on a single line."},
+--   Text {someLines = "world!" :| ["","Hello from text,"]}
 -- ]
 normalizeTokens :: Tokens -> Tokens
 normalizeTokens tokens = stripTokens $ mergeTokens $ tokens
@@ -532,7 +552,8 @@ normalizeTokens tokens = stripTokens $ mergeTokens $ tokens
 --   Dedent,
 --   HaskellCode {manyLines = ["answer = b * 14"]},
 --   Comment {someLines = "world!" :| ["","Hello from comments,"]},
---   Text {someLines = "here!" :| ["And from","","world!","Hello from text,"]}
+--   CommentSingleLine {someLine = "Comment on a single line."},
+--   Text {someLines = "world!" :| ["","Hello from text,"]}
 -- ]
 exampleNonTexTokens :: Tokens
 exampleNonTexTokens = normalizeTokens exampleNonTexTokens'
@@ -541,6 +562,7 @@ exampleNonTexTokens = normalizeTokens exampleNonTexTokens'
 --
 -- >>> pp $ exampleTexTokens
 -- [
+--   Indent {n = 3},
 --   Disabled {manyLines = ["-- What's the answer?"]},
 --   Indent {n = 1},
 --   Indent {n = 2},
@@ -552,12 +574,13 @@ exampleNonTexTokens = normalizeTokens exampleNonTexTokens'
 --   HaskellCode {manyLines = ["answer = b * 14"]},
 --   Text {someLines = "\\end{code}" :| []},
 --   Comment {someLines = "world!" :| ["","Hello from comments,"]},
---   Text {someLines = "world!" :| ["Hello from text,"]}
+--   CommentSingleLine {someLine = "Comment on a single line."}
 -- ]
 exampleTexTokens :: Tokens
 exampleTexTokens =
   normalizeTokens $
-    [ Disabled{manyLines = ["-- What's the answer?"]}
+    [ Indent 3
+    , Disabled{manyLines = ["-- What's the answer?"]}
     , Indent 1
     , Indent 2
     , Text{someLines = "Intermediate results" :| []}
@@ -570,7 +593,7 @@ exampleTexTokens =
     , Text{someLines = "\\end{code}" :| []}
     , Comment ("Hello from comments," :| [])
     , Comment ("world!" :| [])
-    , Text{someLines = "world!" :| ["Hello from text,"]}
+    , CommentSingleLine ("Comment on a single line.")
     ]
 
 -- | Compose a function that converts a document in one 'Format' to a document in another 'Format'.
@@ -608,17 +631,22 @@ mkFromTokens f' config = (<> "\n") . T.intercalate "\n" . f' config
 mkToTokens :: (State -> [(Int, T.Text)] -> [Token] -> [Token]) -> T.Text -> Tokens
 mkToTokens toTokens xs = normalizeTokens (drop 1 $ reverse $ toTokens def (zip [1 ..] (T.lines xs)) [Dedent])
 
--- | Parse to a token contents of a multiline comment written on a single line.
+-- | Parse contents of a single line to a token.
 --
--- Merge consecutive 'Comment's
-parseToken :: Config Internal -> Token -> T.Text -> Int -> Tokens
-parseToken Config{..} prev l lineNumber
+-- - Merge comments
+parseLineToToken :: Config Internal -> Format -> Token -> T.Text -> Int -> Tokens
+parseLineToToken Config{..} format prev l lineNumber
   | l `startsWith` _indent =
       maybe
-        (error $ "Expected a number at line: " <> show lineNumber)
+        (error $ "Expected a number after " <> T.unpack _indent <> " at line: " <> show lineNumber)
         (\x -> [Indent (max 0 x), prev])
         (readMaybe @Int (T.unpack (dropLen _indent l)))
   | l == _dedent = [Dedent, prev]
+  | format `elem` [Md, Hs] = [CommentSingleLine{someLine = l}, prev]
+  | format == TeX && l `startsWith` _texSingleLineCommentStart =
+      [CommentSingleLine{someLine = dropLen _texSingleLineCommentStart l}, prev]
+  | format == Lhs && l `startsWith` _lhsSingleLineCommentStart =
+      [CommentSingleLine{someLine = dropLen _lhsSingleLineCommentStart l}, prev]
   | otherwise =
       case prev of
         Comment{..} -> [Comment{someLines = l <| someLines}]
@@ -641,13 +669,17 @@ errorNotEnoughTokens format = error $ "Got not enough tokens when converting 'To
 -- __Rules__
 --
 -- - Certain [assumptions]("Converter#assumptions") must hold for inputs.
--- - These are the relations between document blocks and tokens when the default 'Config' values are used.
+-- - These are the relations between tokens and document blocks when the default 'Config' values are used.
 --
---     - @'% LIMA_INDENT N'@ (@N@ is an 'Int') ~ 'Indent'
---     - @'% LIMA_DEDENT'@ ~ 'Dedent'.
---     - Lines between and including @'% LIMA_DISABLE'@ and @'% LIMA_ENABLE'@ ~ 'Disabled'.
---
---     - Consecutive lines, either empty or starting with @'% '@ ~ 'Comment'.
+--     - 'Indent' ~ @'% LIMA_INDENT N'@ (@N@ is an 'Int').
+--     - 'Dedent' ~ @'% LIMA_DEDENT'@.
+--     - 'Disabled' ~ @'% LIMA_DISABLE'@ and @'% LIMA_ENABLE'@ and lines between them.
+--     - 'CommentSingleLine' ~ a line starting with @'% SINGLE_LINE '@.
+--     
+--         @
+--         % SINGLE_LINE line
+--         @
+--     - 'Comment' ~ consecutive lines, either empty or starting with @'% '@.
 --
 --         @
 --         % Hello,
@@ -657,15 +689,19 @@ errorNotEnoughTokens format = error $ "Got not enough tokens when converting 'To
 --         % user!
 --         @
 --
---         - At least one line must have nonempty text after @'% '@
+--         - At least one line must have nonempty text after @'% '@.
 --
---     - Lines between possibly indented tags @'\\begin{code}'@ and @'\\end{code}'@ ~ 'HaskellCode'.
+--     - 'HaskellCode' ~ lines between possibly indented tags @'\\begin{code}'@ and @'\\end{code}'@.
 --
---     - Other lines ~ 'Text'.
+--         - Inside a 'Token', code will be shifted to the left. See 'normalizeTokens'.
+--         - When printing the 'Tokens', code will be indented according to previous 'Tokens'.
+--     - 'Text' ~ other lines.
 --
 -- === __Example__
 --
 -- >>> pp $ texFromTokens def exampleTexTokens
+-- % LIMA_INDENT 3
+-- <BLANKLINE>
 -- % LIMA_DISABLE
 -- <BLANKLINE>
 -- % -- What's the answer?
@@ -693,8 +729,7 @@ errorNotEnoughTokens format = error $ "Got not enough tokens when converting 'To
 -- <BLANKLINE>
 -- % world!
 -- <BLANKLINE>
--- Hello from text,
--- world!
+-- % SINGLE_LINE Comment on a single line.
 texFromTokens :: Config User -> Tokens -> T.Text
 texFromTokens = mkFromTokens texFromTokens'
 
@@ -704,7 +739,7 @@ texFromTokens = mkFromTokens texFromTokens'
 --
 -- These 'T.Text's are concatenated in 'texFromTokens'.
 texFromTokens' :: Config User -> Tokens -> [T.Text]
-texFromTokens' (toInternalConfig -> Config{..}) tokens =
+texFromTokens' (toConfigInternal -> Config{..}) tokens =
   dropEmpties $ reverse $ (T.intercalate "\n" . reverse <$> (fromTokens (Dedent : tokens) (0, [])))
  where
   fromTokens :: Tokens -> (Int, [[T.Text]]) -> [[T.Text]]
@@ -732,6 +767,7 @@ texFromTokens' (toInternalConfig -> Config{..}) tokens =
                   _ -> [] : rs
               )
       Comment{someLines = t :| ts} -> (curIndent, (prependTexComment <$> (t : ts)) : [] : rs)
+      CommentSingleLine{someLine} -> (curIndent, [prependTexComment $ _texSingleLineCommentStart <> someLine] : [] : rs)
   translate _ _ _ = errorNotEnoughTokens TeX
 
 -- | Convert 'Tokens' to @TeX@ code.
@@ -740,8 +776,57 @@ texFromTokens' (toInternalConfig -> Config{..}) tokens =
 --
 -- >>> (texToTokens def $ texFromTokens def exampleTexTokens) == exampleTexTokens
 -- True
+--
+-- >>> pp $ texFromTokens def exampleTexTokens
+-- % LIMA_INDENT 3
+-- <BLANKLINE>
+-- % LIMA_DISABLE
+-- <BLANKLINE>
+-- % -- What's the answer?
+-- <BLANKLINE>
+-- % LIMA_ENABLE
+-- <BLANKLINE>
+-- % LIMA_INDENT 1
+-- <BLANKLINE>
+-- % LIMA_INDENT 2
+-- <BLANKLINE>
+-- Intermediate results
+-- <BLANKLINE>
+-- \begin{code}
+--   a = const 3
+--   b = a 4
+-- \end{code}
+-- <BLANKLINE>
+-- % LIMA_DEDENT
+-- <BLANKLINE>
+-- \begin{code}
+-- answer = b * 14
+-- \end{code}
+-- <BLANKLINE>
+-- % Hello from comments,
+-- <BLANKLINE>
+-- % world!
+-- <BLANKLINE>
+-- % SINGLE_LINE Comment on a single line.
+--
+-- >>> pp $ texToTokens def $ texFromTokens def exampleTexTokens
+-- [
+--   Indent {n = 3},
+--   Disabled {manyLines = ["-- What's the answer?"]},
+--   Indent {n = 1},
+--   Indent {n = 2},
+--   Text {someLines = "\\begin{code}" :| ["","Intermediate results"]},
+--   HaskellCode {manyLines = ["b = a 4","a = const 3"]},
+--   Text {someLines = "\\end{code}" :| []},
+--   Dedent,
+--   Text {someLines = "\\begin{code}" :| []},
+--   HaskellCode {manyLines = ["answer = b * 14"]},
+--   Text {someLines = "\\end{code}" :| []},
+--   Comment {someLines = "world!" :| ["","Hello from comments,"]},
+--   CommentSingleLine {someLine = "Comment on a single line."}
+-- ]
 texToTokens :: Config User -> T.Text -> Tokens
-texToTokens (toInternalConfig -> conf@Config{..}) xs = tokens
+texToTokens (toConfigInternal -> conf@Config{..}) xs = tokens
  where
   tokens = mkToTokens toTokens xs
   toTokens :: State -> [(Int, T.Text)] -> Tokens -> Tokens
@@ -773,7 +858,7 @@ texToTokens (toInternalConfig -> conf@Config{..}) xs = tokens
             : case r of
               Text{..} -> Text{someLines = l <| someLines} : rs
               _ -> Text{someLines = l :| []} : result
-    | -- comment on a single line
+    | -- Comment on a single line.
       l `startsWith` texCommentSpace =
         let l' = dropLen texCommentSpace l
          in if
@@ -782,7 +867,7 @@ texToTokens (toInternalConfig -> conf@Config{..}) xs = tokens
                     toTokens def{inDisabled = True} ls (Disabled [] : result)
                 | otherwise ->
                     toTokens def ls $
-                      parseToken conf r l' lineNumber <> rs
+                      parseLineToToken conf TeX r l' lineNumber <> rs
     | inText =
         toTokens def{inText} ls $
           case r of
@@ -808,13 +893,17 @@ texToTokens (toInternalConfig -> conf@Config{..}) xs = tokens
 --
 -- - These are the relations between document blocks and tokens when the default 'Config' values are used.
 --
---     - @'% LIMA_INDENT N'@ (@N@ is an 'Int') ~ 'Indent'.
---     - @'% LIMA_DEDENT'@ ~ 'Dedent'.
---     - Lines between and including @'% LIMA_DISABLE'@ and @'% LIMA_ENABLE'@ ~ 'Disabled'.
+--     - 'Indent' ~ @'% LIMA_INDENT N'@ (@N@ is an 'Int').
+--     - 'Dedent' ~ @'% LIMA_DEDENT'@.
+--     - 'Disabled' ~ Lines between and including @'% LIMA_DISABLE'@ and @'% LIMA_ENABLE'@.
 --
 --         - There must be at least one nonempty line between these tags.
---
---     - Consecutive lines, either empty or starting with @'% '@ ~ 'Comment'.
+--     - 'CommentSingleLine' ~ a line starting with @'% SINGLE_LINE '@.
+-- 
+--         @
+--         % SINGLE_LINE line
+--         @
+--     - 'Comment' ~ consecutive lines, either empty or starting with @'% '@.
 --
 --         @
 --         % Hello,
@@ -826,14 +915,16 @@ texToTokens (toInternalConfig -> conf@Config{..}) xs = tokens
 --
 --         - At least one line must have nonempty text after @'% '@
 --
---     - Consecutive lines starting with @'> '@ ~ 'HaskellCode'.
+--     - 'HaskellCode' ~ consecutive lines starting with @'> '@.
 --
 --         @
 --         > a4 = 4
 --         > a2 = 2
 --         @
 --
---     - Other lines ~ 'Text'.
+--         - Inside a 'Token', code is shifted to the left. See 'normalizeTokens'.
+--         - During printing, code is indented according to previous 'Tokens'.
+--     - 'Text' ~ other lines.
 --
 -- === __Example__
 --
@@ -862,11 +953,11 @@ texToTokens (toInternalConfig -> conf@Config{..}) xs = tokens
 -- <BLANKLINE>
 -- % world!
 -- <BLANKLINE>
--- Hello from text,
--- world!
+-- % SINGLE_LINE Comment on a single line.
 -- <BLANKLINE>
--- And from
--- here!
+-- Hello from text,
+-- <BLANKLINE>
+-- world!
 lhsFromTokens :: Config User -> Tokens -> T.Text
 lhsFromTokens config tokens = mkFromTokens lhsFromTokens' config tokens
 
@@ -876,7 +967,7 @@ lhsFromTokens config tokens = mkFromTokens lhsFromTokens' config tokens
 --
 -- These 'T.Text's are concatenated in 'lhsFromTokens'.
 lhsFromTokens' :: Config User -> Tokens -> [T.Text]
-lhsFromTokens' (toInternalConfig -> Config{..}) blocks =
+lhsFromTokens' (toConfigInternal -> Config{..}) blocks =
   dropEmpties $ reverse (T.intercalate "\n" . reverse <$> (fromTokens (Dedent : blocks) (0, [])))
  where
   fromTokens :: Tokens -> (Int, [[T.Text]]) -> [[T.Text]]
@@ -904,6 +995,7 @@ lhsFromTokens' (toInternalConfig -> Config{..}) blocks =
                   _ -> [] : rs
               )
       Comment{someLines = t :| ts} -> (curIndent, (prependLhsComment <$> t : ts) : [] : rs)
+      CommentSingleLine{someLine} -> (curIndent, [prependLhsComment $ _lhsSingleLineCommentStart <> someLine] : [] : rs)
   translate _ _ _ = errorNotEnoughTokens Lhs
 
 -- | Convert 'Tokens' to @Markdown@ code.
@@ -913,7 +1005,7 @@ lhsFromTokens' (toInternalConfig -> Config{..}) blocks =
 -- >>> (lhsToTokens def $ lhsFromTokens def exampleNonTexTokens) == exampleNonTexTokens
 -- True
 lhsToTokens :: Config User -> T.Text -> Tokens
-lhsToTokens (toInternalConfig -> conf@Config{..}) xs = tokens
+lhsToTokens (toConfigInternal -> conf@Config{..}) xs = tokens
  where
   tokens = mkToTokens toTokens xs
   toTokens :: State -> [(Int, T.Text)] -> Tokens -> Tokens
@@ -929,7 +1021,7 @@ lhsToTokens (toInternalConfig -> conf@Config{..}) xs = tokens
                   case r of
                     Disabled{..} -> (r{manyLines = dropLhsComment l lineNumber : manyLines} : rs)
                     _ -> errorExpected Disabled{}
-    | -- comment on a single line
+    | -- Comment on a single line.
       l `startsWith` lhsCommentSpace =
         let l' = dropLen lhsCommentSpace l
          in if
@@ -938,7 +1030,7 @@ lhsToTokens (toInternalConfig -> conf@Config{..}) xs = tokens
                     toTokens def{inDisabled = True} ls (Disabled [] : result)
                 | otherwise ->
                     toTokens def ls $
-                      parseToken conf r l' lineNumber <> rs
+                      parseLineToToken conf Lhs r l' lineNumber <> rs
     | -- start of a snippet
       l `startsWith` lhsHsCodeSpace =
         toTokens def{inHaskellCode = True} ls $
@@ -971,11 +1063,11 @@ lhsToTokens (toInternalConfig -> conf@Config{..}) xs = tokens
 --
 -- - These are the relations between document blocks and tokens when the default 'Config' values are used.
 --
---     - @'<!-- LIMA_INDENT N --\>'@ (@N@ is an 'Int') ~ 'Indent'
---     - @'<!-- LIMA_DEDENT --\>'@ ~ 'Dedent'.
---     - Multiline comment
+--     - 'Indent' ~ @'<!-- LIMA_INDENT N --\>'@, where @N@ is an 'Int'.
+--     - 'Dedent' ~ @'<!-- LIMA_DEDENT --\>'@.
+--     - 'Disabled' ~ a multiline comment
 --       starting with @'<!-- LIMA_DISABLE\\n'@
---       and ending with @'\\nLIMA_ENABLE --\>'@  ~ 'Disabled'.
+--       and ending with @'\\nLIMA_ENABLE --\>'@.
 --
 --         @
 --         <!-- LIMA_DISABLE
@@ -983,8 +1075,12 @@ lhsToTokens (toInternalConfig -> conf@Config{..}) xs = tokens
 --         a2 = 2
 --         LIMA_ENABLE --\>
 --         @
---
---     - Multiline comments starting with @'<!-- {text}'@ where @{text}@ is nonempty text ~ 'Comment'.
+--     - 'CommentSingleLine' ~ a line starting with @'<!-- '@ and ending with @' -->'@.
+-- 
+--         @
+--         <!-- line -->
+--         @
+--     - 'Comment' ~ a multiline comment starting with @'<!-- {text}'@, where @{text}@ is nonempty text.
 --
 --         @
 --         <!-- line 1
@@ -994,7 +1090,7 @@ lhsToTokens (toInternalConfig -> conf@Config{..}) xs = tokens
 --
 --         - Consecutive 'Comment's are merged into a single 'Comment'.
 --
---     - Possibly indented block starting with @\'```haskell\'@ and ending with @'```'@ ~ 'HaskellCode'.
+--     - 'HaskellCode' ~ possibly indented block starting with @\'```haskell\'@ and ending with @'```'@.
 --
 --         @
 --           ```haskell
@@ -1002,7 +1098,7 @@ lhsToTokens (toInternalConfig -> conf@Config{..}) xs = tokens
 --           ```
 --         @
 --
---     - Other lines ~ 'Text'.
+--     - 'Text' ~ other lines.
 --
 --         @
 --         Hello, world!
@@ -1041,11 +1137,11 @@ lhsToTokens (toInternalConfig -> conf@Config{..}) xs = tokens
 -- world!
 -- -->
 -- <BLANKLINE>
--- Hello from text,
--- world!
+-- <!-- Comment on a single line. -->
 -- <BLANKLINE>
--- And from
--- here!
+-- Hello from text,
+-- <BLANKLINE>
+-- world!
 mdFromTokens :: Config User -> Tokens -> T.Text
 mdFromTokens = mkFromTokens mdFromTokens'
 
@@ -1055,7 +1151,7 @@ mdFromTokens = mkFromTokens mdFromTokens'
 --
 -- These 'T.Text's are concatenated in 'mdFromTokens'.
 mdFromTokens' :: Config User -> Tokens -> [T.Text]
-mdFromTokens' (toInternalConfig -> Config{..}) blocks =
+mdFromTokens' (toConfigInternal -> Config{..}) blocks =
   intersperse T.empty . reverse $ T.intercalate "\n" . reverse <$> fromTokens 0 blocks []
  where
   fromTokens :: Int -> Tokens -> [[T.Text]] -> [[T.Text]]
@@ -1067,9 +1163,12 @@ mdFromTokens' (toInternalConfig -> Config{..}) blocks =
       Disabled{..} -> fromTokens 0 bs ([[_enable <> mdCommentCloseSpace]] <> [manyLines] <> [[mdCommentOpenSpace <> _disable]] <> res)
       HaskellCode{..} -> fromTokens curIndent bs ((indentN curIndent <$> ([_mdHaskellCodeEnd] <> manyLines <> [_mdHaskellCodeStart])) : res)
       Text{..} -> fromTokens curIndent bs (toList someLines : res)
-      Comment{someLines = t :| ts} ->
-        let ts' = t : ts
-         in fromTokens curIndent bs $ [mdCommentClose] <> init ts' <> [mdCommentOpenSpace <> last ts'] : res
+      Comment{someLines} ->
+        fromTokens curIndent bs $
+          [mdCommentClose] <> NonEmpty.init someLines <> [mdCommentOpenSpace <> NonEmpty.last someLines] : res
+      CommentSingleLine{someLine} ->
+        fromTokens curIndent bs $
+          [mdCommentOpenSpace <> someLine <> mdCommentCloseSpace] : res
 
 -- | Convert 'Tokens' to @Markdown@ code.
 --
@@ -1078,7 +1177,7 @@ mdFromTokens' (toInternalConfig -> Config{..}) blocks =
 -- >>> (mdToTokens def $ mdFromTokens def exampleNonTexTokens) == exampleNonTexTokens
 -- True
 mdToTokens :: Config User -> T.Text -> Tokens
-mdToTokens (toInternalConfig -> conf@Config{..}) xs = tokens
+mdToTokens (toConfigInternal -> conf@Config{..}) xs = tokens
  where
   tokens = mkToTokens toTokens xs
   toTokens :: State -> [(Int, T.Text)] -> Tokens -> Tokens
@@ -1112,9 +1211,9 @@ mdToTokens (toInternalConfig -> conf@Config{..}) xs = tokens
               _ -> errorExpected HaskellCode{}
     -- Doesn't matter if in text
 
-    | -- comment on a single line
+    | -- Comment on a single line.
       isMdComment l =
-        toTokens def ls $ parseToken conf r (stripMdComment l) lineNumber <> rs
+        toTokens def ls $ parseLineToToken conf Md r (stripMdComment l) lineNumber <> rs
     | -- start of a comment on multiple lines
       l `startsWith` mdCommentOpenSpace =
         let l' = dropLen mdCommentOpenSpace l
@@ -1152,13 +1251,20 @@ mdToTokens (toInternalConfig -> conf@Config{..}) xs = tokens
 --
 -- - Certain [assumptions]("Converter#assumptions") must hold for inputs.
 --
--- - These are the relations between document blocks and tokens when the default 'Config' values are used.
+-- - These are the relations between 'Tokens' and document blocks when the default 'Config' values are used.
 --
---     - @'{- LIMA_INDENT N -}'@ (@N@ is an 'Int') ~ 'Indent'.
---     - @'{- LIMA_DEDENT -}'@ ~ 'Dedent'.
---     - Lines between and including @'{- LIMA_DISABLE -}'@ and @'{- LIMA_ENABLE -}'@ ~ 'Disabled'.
+--     - 'Indent' ~ @'{- LIMA_INDENT N -}'@ where @N@ is an 'Int'.
+--     - 'Dedent' ~ @'{- LIMA_DEDENT -}'@.
+--     - 'Disabled' ~ @'{- LIMA_DISABLE -}'@ and @'{- LIMA_ENABLE -}'@ and lines between them.
 --
---     - Multiline comment starting with @'{-\\n'@ ~ 'Text'.
+--         @
+--         {- LIMA_DISABLE -}
+--
+--         disabled
+--
+--         {- LIMA_ENABLE -}
+--         @
+--     - 'Text' ~ a multiline comment starting with @'{-\\n'@ and ending with @'\\n-}'@.
 --
 --         @
 --         {-
@@ -1168,8 +1274,12 @@ mdToTokens (toInternalConfig -> conf@Config{..}) xs = tokens
 --
 --         - Consecutive 'Text's are merged into a single 'Text'.
 --         - There must be at list one nonempty line inside this comment.
---
---     - Multiline comment starting with @'{- '@ where @<text>@ is nonempty text ~ 'Comment'.
+--     - 'CommentSingleLine' ~ a multiline comment on a single line.
+-- 
+--         @
+--         {- line -}
+--         @
+--     - 'Comment' ~ a multiline comment starting with @'{- <text>'@, where @<text>@ is nonempty text, and ending with @\\n-}@
 --
 --         @
 --         {- line 1
@@ -1216,12 +1326,12 @@ mdToTokens (toInternalConfig -> conf@Config{..}) xs = tokens
 -- world!
 -- -}
 -- <BLANKLINE>
+-- {- Comment on a single line. -}
+-- <BLANKLINE>
 -- {-
 -- Hello from text,
--- world!
 -- <BLANKLINE>
--- And from
--- here!
+-- world!
 -- -}
 hsFromTokens :: Config User -> Tokens -> T.Text
 hsFromTokens = mkFromTokens hsFromTokens'
@@ -1232,7 +1342,7 @@ hsFromTokens = mkFromTokens hsFromTokens'
 --
 -- These 'T.Text's are concatenated in 'hsFromTokens'.
 hsFromTokens' :: Config User -> Tokens -> [T.Text]
-hsFromTokens' (toInternalConfig -> Config{..}) blocks =
+hsFromTokens' (toConfigInternal -> Config{..}) blocks =
   intersperse T.empty . reverse $ T.intercalate "\n" . reverse <$> toHs blocks []
  where
   toHs :: Tokens -> [[T.Text]] -> [[T.Text]]
@@ -1249,9 +1359,10 @@ hsFromTokens' (toInternalConfig -> Config{..}) blocks =
             <> res
         HaskellCode{..} -> manyLines : res
         Text{..} -> [hsCommentClose] <> toList someLines <> [hsCommentOpen] : res
-        Comment{someLines = t :| ts} ->
-          let ts' = t : ts
-           in [hsCommentClose] <> init ts' <> [hsCommentOpenSpace <> last ts'] : res
+        Comment{someLines} ->
+          [hsCommentClose] <> NonEmpty.init someLines <> [hsCommentOpenSpace <> NonEmpty.last someLines] : res
+        CommentSingleLine{someLine} ->
+          [hsCommentOpenSpace <> someLine <> hsCommentCloseSpace] : res
 
 -- | Convert 'Tokens' to @Haskell@ code.
 --
@@ -1260,7 +1371,7 @@ hsFromTokens' (toInternalConfig -> Config{..}) blocks =
 -- >>> (hsToTokens def $ hsFromTokens def exampleNonTexTokens) == exampleNonTexTokens
 -- True
 hsToTokens :: Config User -> T.Text -> Tokens
-hsToTokens (toInternalConfig -> conf@Config{..}) xs = tokens
+hsToTokens (toConfigInternal -> conf@Config{..}) xs = tokens
  where
   tokens = mkToTokens toTokens xs
   toTokens :: State -> [(Int, T.Text)] -> Tokens -> Tokens
@@ -1316,13 +1427,12 @@ hsToTokens (toInternalConfig -> conf@Config{..}) xs = tokens
     | -- start of text
       l == hsCommentOpen =
         toTokens def{inText = True} ls (Text{someLines = T.empty :| []} : res)
-    | -- comment on a single line
+    | -- Comment on a single line.
       isHsComment l =
         let l' = stripHsComment l
          in if
                 | l' `startsWith` _disable -> toTokens def{inDisabled = True} ls (Disabled [] : res)
-                -- \| null l' -> error
-                | otherwise -> toTokens def ls $ parseToken conf r l' lineNumber <> rs
+                | otherwise -> toTokens def ls $ parseLineToToken conf Hs r l' lineNumber <> rs
     | -- start of a comment on multiple lines
       l `startsWith` hsCommentOpenSpace =
         let l' = dropLen hsCommentOpenSpace l

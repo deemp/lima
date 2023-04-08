@@ -28,8 +28,8 @@ answer = b * 14
 world!
 -->
 
-Hello from text,
-world!
+<!-- Comment on a single line. -->
 
-And from
-here!
+Hello from text,
+
+world!

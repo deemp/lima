@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -fplugin Debug.Breakpoint #-}
 
-import Converter (Config, Format (..), Token (..), Tokens, User, def, exampleNonTexTokens, exampleTexTokens, normalizeTokens, selectFromTokens, selectToTokens, showFormatExtension, showFormatName, texHaskellCodeEnd, texHaskellCodeStart, toInternalConfig)
+import Converter (Config, Format (..), Token (..), Tokens, User, def, exampleNonTexTokens, exampleTexTokens, normalizeTokens, selectFromTokens, selectToTokens, showFormatExtension, showFormatName, texHaskellCodeEnd, texHaskellCodeStart, toConfigInternal)
 import Converter.Internal (stripEmpties)
 import Data.List.NonEmpty (NonEmpty (..))
 import Data.String.Interpolate (i)
@@ -30,6 +30,10 @@ main =
       , testTripping TeX
       , testTripping Md
       ]
+
+-- How many tokens to generate for tripping tests
+_N_TOKENS :: Int
+_N_TOKENS = 1000
 
 -- TODO test initial haskell code indentation is the same as after parsing
 -- so, generate lines with indentation relative to the previous indent token
@@ -122,10 +126,15 @@ genText = do
   someLines <- genNonEmpty
   pure Text{..}
 
+genCommentSingleLine :: Gen Token
+genCommentSingleLine = do
+  someLine <- genLine
+  pure CommentSingleLine{..}
+
 genNonDisabled :: (?genCode :: GenCode) => Gen Tokens
 genNonDisabled =
   Gen.choice $
-    [?genCode] <> (((: []) <$>) <$> [genComment, genText, genIndent, genDedent])
+    [?genCode] <> (((: []) <$>) <$> [genComment, genCommentSingleLine, genText, genIndent, genDedent])
 
 genDisabled :: Env => Gen Token
 genDisabled = do
@@ -139,14 +148,14 @@ genTokensSublist =
 
 genTokens :: Env => Gen Tokens
 genTokens = do
-  subLists <- Gen.list (Range.singleton 1000) genTokensSublist
+  subLists <- Gen.list (Range.singleton _N_TOKENS) genTokensSublist
   pure $ normalizeTokens $ concat subLists
 
 -- Code tokens from tex files can only be recognized in a specific sequence
 -- That's why, they're generated in a list
 texGenCode :: (?config :: Config User) => Gen [Token]
 texGenCode = do
-  let config = toInternalConfig ?config
+  let config = toConfigInternal ?config
   manyLines <- genLines
   let manyLines' = if null (stripEmpties manyLines) then ["a"] else manyLines
   pure $
@@ -157,8 +166,8 @@ texGenCode = do
 
 -- Code tokens from tex files can only be recognized in a specific sequence
 -- That's why, they're generated in a list
-notTexGenCode :: Gen [Token]
-notTexGenCode = do
+nonTexGenCode :: Gen [Token]
+nonTexGenCode = do
   manyLines <- genLines
   let manyLines' = if null (stripEmpties manyLines) then ["a"] else manyLines
   pure [HaskellCode{manyLines = manyLines'}]
@@ -181,7 +190,7 @@ type Env = (?config :: Config User, ?format :: Format, ?genCode :: GenCode)
 selectGenCode :: Format -> ((?config :: Config User) => GenCode)
 selectGenCode = \case
   TeX -> texGenCode
-  _ -> notTexGenCode
+  _ -> nonTexGenCode
 
 testTripping :: Format -> TestTree
 testTripping format =

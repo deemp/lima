@@ -1,3 +1,5 @@
+{- LIMA_INDENT 3 -}
+
 {- LIMA_DISABLE -}
 
 -- What's the answer?
@@ -38,7 +40,4 @@ answer = b * 14
 world!
 -}
 
-{-
-Hello from text,
-world!
--}
+{- Comment on a single line. -}

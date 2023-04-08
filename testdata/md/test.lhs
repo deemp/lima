@@ -22,8 +22,8 @@
 
 % world!
 
-Hello from text,
-world!
+% SINGLE_LINE Comment on a single line.
 
-And from
-here!
+Hello from text,
+
+world!

@@ -26,10 +26,10 @@ answer = b * 14
 world!
 -}
 
+{- Comment on a single line. -}
+
 {-
 Hello from text,
-world!
 
-And from
-here!
+world!
 -}
