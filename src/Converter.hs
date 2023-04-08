@@ -631,7 +631,7 @@ mkFromTokens f' config = (<> "\n") . T.intercalate "\n" . f' config
 mkToTokens :: (State -> [(Int, T.Text)] -> [Token] -> [Token]) -> T.Text -> Tokens
 mkToTokens toTokens xs = normalizeTokens (drop 1 $ reverse $ toTokens def (zip [1 ..] (T.lines xs)) [Dedent])
 
--- | Parse contents of a single line to a token.
+-- | Parse a single line to a token.
 --
 -- - Merge comments
 parseLineToToken :: Config Internal -> Format -> Token -> T.Text -> Int -> Tokens

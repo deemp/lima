@@ -100,8 +100,8 @@ genNonEmpty = Gen.nonEmpty (Range.constant 1 5) genLine
 genLine :: Gen T.Text
 genLine = do
   indent <- Gen.text (Range.constant 0 5) (pure ' ')
-  contents <- Gen.text (Range.constant 1 5) alphabet
-  pure $ indent <> contents
+  content <- Gen.text (Range.constant 1 5) alphabet
+  pure $ indent <> content
 
 genLines :: Gen [T.Text]
 genLines = Gen.list (Range.constant 1 5) genLine

@@ -43,17 +43,18 @@ Convert between files in different formats.
 - A document can be parsed into a list of tokens.
   - Tags affect how a document is parsed.
 - The tokens can be printed back to that document.
-- After printing a parsed document back to itself, the document becomes formatted.
-  - Formatting is idempotent. In other words, formatting the document again won't change its contents.
+- Formatting a document is printing a parsed document back to itself.
+  - Formatting is idempotent. In other words, formatting the document again won't change its content.
 - The `lima` library provides a parser and a printer for each supported format.
 - A composition of a printer after a parser produces a converter.
-- Such a converter is usually invertible for two formatted documents.
+- Such a converter is usually invertible for a formatted document.
+  - Converting a document `A` to a document `B`, then converting `B` to `A` doesn't change the content of `A`.
 
 ## Setup
 
 1. Create a test suite.
 1. Add `lima` and `text` to its dependencies.
-1. Create a test module. It can have the following contents.
+1. Create a test module. It can have the following content.
 -}
 
 {- LIMA_INDENT 4 -}
