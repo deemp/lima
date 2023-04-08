@@ -7,20 +7,12 @@
     flake-utils.follows = "flake-utils_/flake-utils";
     haskell-tools.url = "github:deemp/flakes?dir=language-tools/haskell";
   };
-  outputs =
-    { self
-    , flake-utils
-    , nixpkgs
-    , drv-tools
-    , haskell-tools
-    , ...
-    }:
-    flake-utils.lib.eachDefaultSystem (system:
+  outputs = inputs: inputs.flake-utils.lib.eachDefaultSystem (system:
     let
-      pkgs = nixpkgs.legacyPackages.${system};
-      inherit (drv-tools.functions.${system}) mkBinName withAttrs withMan withDescription;
-      inherit (drv-tools.configs.${system}) man;
-      inherit (haskell-tools.functions.${system}) toolsGHC;
+      pkgs = inputs.nixpkgs.legacyPackages.${system};
+      inherit (inputs.drv-tools.functions.${system}) mkBinName withAttrs withMan withDescription;
+      inherit (inputs.drv-tools.configs.${system}) man;
+      inherit (inputs.haskell-tools.functions.${system}) toolsGHC;
 
       packageName = "lima";
 
