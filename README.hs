@@ -5,13 +5,17 @@ Convert between files in different formats.
 
 ## Related works
 
-- [LiterateMarkdown](https://github.com/haskie-lambda/LiterateMarkdown) - `lima` is a fork of this (abandoned?) project.
+- [LiterateMarkdown](https://hackage.haskell.org/package/LiterateMarkdown) - `lima` is a fork of this (abandoned?) project.
 
-- [pandoc](https://www.uv.es/wikibase/doc/cas/pandoc_manual_instalado.wiki?60) - [supports](https://www.uv.es/wikibase/doc/cas/pandoc_manual_instalado.wiki?60) `Literate Haskell` and a ton of other formats.
+- [pandoc](https://hackage.haskell.org/package/pandoc) - [supports](https://www.uv.es/wikibase/doc/cas/pandoc_manual_instalado.wiki?60) `Literate Haskell` and a ton of other formats.
 
-- [IHaskell](https://github.com/IHaskell/IHaskell) - create `Jupyter` notebooks with `Haskell` code cells and `GitHub Flavored Markdown` text cells and do much more.
+- [IHaskell](https://hackage.haskell.org/package/ihaskell) - create `Jupyter` notebooks with `Haskell` code cells and `GitHub Flavored Markdown` text cells.
 
 - [lhs2tex](https://hackage.haskell.org/package/lhs2tex) - convert `Literate Haskell` to `TeX`.
+
+- [agda2lagda](https://hackage.haskell.org/package/agda2lagda) - Generate a literate Agda/Haskell script from an Agda/Haskell script. Produces LaTeX or Markdown literate scripts.
+
+- [markdown-unlit](https://hackage.haskell.org/package/markdown-unlit) - `markdown-unlit` is a custom unlit program. It can be used to extract Haskell code from Markdown files..
 
 ## Supported formats
 

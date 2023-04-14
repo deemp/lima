@@ -14,6 +14,8 @@ Convert between files in different formats.
 
 - [agda2lagda](https://hackage.haskell.org/package/agda2lagda) - Generate a literate Agda/Haskell script from an Agda/Haskell script. Produces LaTeX or Markdown literate scripts.
 
+- [markdown-unlit](https://hackage.haskell.org/package/markdown-unlit) - `markdown-unlit` is a custom unlit program. It can be used to extract Haskell code from Markdown files..
+
 ## Supported formats
 
 - `Haskell` (`.hs`)
