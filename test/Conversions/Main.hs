@@ -81,7 +81,7 @@ selectTokens = \case
 selectFormats :: Format -> [Format]
 selectFormats = \case
   TeX -> [Hs, Md, Lhs, TeX]
-  _ -> [Hs, Md, Lhs]
+  _ -> [Hs, Lhs, Md]
 
 testWrite :: Format -> TestTree
 testWrite format =

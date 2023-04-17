@@ -5,9 +5,9 @@
 , Indent
     { n = 1 }
 , Indent
-    { n = 2 }
+    { n = 0 }
 , Text
-    { someLines = "\\begin{code}" :|
+    { someLines = "\\begin{mycode}" :|
         [ ""
         , "Intermediate results"
         ]
@@ -19,14 +19,14 @@
         ]
     }
 , Text
-    { someLines = "\\end{code}" :| [] }
+    { someLines = "\\end{mycode}" :| [] }
 , Dedent
 , Text
-    { someLines = "\\begin{code}" :| [] }
+    { someLines = "\\begin{mycode}" :| [] }
 , HaskellCode
     { manyLines = [ "answer = b * 14" ] }
 , Text
-    { someLines = "\\end{code}" :| [] }
+    { someLines = "\\end{mycode}" :| [] }
 , Comment
     { someLines = "world!" :|
         [ ""

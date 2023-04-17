@@ -11,6 +11,7 @@
 % LIMA_INDENT 2
 
 - Intermediate results
+
 >   a = const 3
 >   b = a 4
 

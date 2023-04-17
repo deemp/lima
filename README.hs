@@ -17,6 +17,8 @@ Convert between files in different formats.
 
 - [markdown-unlit](https://hackage.haskell.org/package/markdown-unlit) - `markdown-unlit` is a custom unlit program. It can be used to extract Haskell code from Markdown files..
 
+- [unlit](https://hackage.haskell.org/package/unlit) - Tool to convert literate code between styles or to code.
+
 ## Supported formats
 
 - `Haskell` (`.hs`)

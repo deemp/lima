@@ -8,20 +8,24 @@
 
 % LIMA_INDENT 1
 
-% LIMA_INDENT 2
+% LIMA_INDENT 0
 
 Intermediate results
 
-\begin{code}
->   a = const 3
->   b = a 4
-\end{code}
+\begin{mycode}
+
+> a = const 3
+> b = a 4
+
+\end{mycode}
 
 % LIMA_DEDENT
 
-\begin{code}
+\begin{mycode}
+
 > answer = b * 14
-\end{code}
+
+\end{mycode}
 
 % Hello from comments,
 

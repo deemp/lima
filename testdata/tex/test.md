@@ -8,28 +8,28 @@ LIMA_ENABLE -->
 
  <!-- LIMA_INDENT 1 -->
 
-  <!-- LIMA_INDENT 2 -->
+<!-- LIMA_INDENT 0 -->
 
 Intermediate results
 
-\begin{code}
+\begin{mycode}
 
-  ```haskell
-  a = const 3
-  b = a 4
-  ```
+```haskell
+a = const 3
+b = a 4
+```
 
-\end{code}
+\end{mycode}
 
 <!-- LIMA_DEDENT -->
 
-\begin{code}
+\begin{mycode}
 
 ```haskell
 answer = b * 14
 ```
 
-\end{code}
+\end{mycode}
 
 <!-- Hello from comments,
 

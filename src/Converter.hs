@@ -49,6 +49,47 @@
 --             @
 --
 --      - There are no leading or trailing empty lines inside of 'Tokens'.
+-- 
+-- There are several forms of @Haskell@ code blocks in @Literate Haskell@ recognized by @GHC@.
+--
+-- 1. Code between @\begin{code}@ and @\end{code}@ tags.
+--
+--     @
+--     \begin{code}
+--        a = 42
+--     \end{code}
+--     \begin{code}
+--        b = a
+--     \end{code}
+--     @
+-- 
+--     - The line starting with @\begin{code}@ cannot have other non-space characters after @\begin{code}@.
+--     - The indentation of all expressions in code blocks must be the same.
+--
+-- 1. Code lines starting with @'> '@.
+--
+--     @
+--     \begin{mycode}
+--
+--     >    a = 42
+--
+--     \end{mycode}
+--     \begin{mycode}
+--
+--     >    b = a
+--
+--     \end{mycode}
+--     @
+--     
+--     - There must be at least a single empty line before and after each @Haskell@ code block.
+--     - Any text may surround @Haskell@ code blocks.
+--     - The indentation of all expressions in code blocks must be the same.
+--
+-- This library supports only the second form as this form is more versatile.
+-- 
+-- Moreover, this form does not require writing @Markdown@ tags like @\'```haskell\'@.
+-- 
+-- Such tags will automatically be printed when converting @Literate Haskell@ to @Markdown@.
 module Converter (
   -- * Config
   Mode,
@@ -164,8 +205,8 @@ type family Mode a where
 --   _dedent = "LIMA_DEDENT",
 --   _mdHaskellCodeStart = "```haskell",
 --   _mdHaskellCodeEnd = "```",
---   _texHaskellCodeStart = "\\begin{code}",
---   _texHaskellCodeEnd = "\\end{code}",
+--   _texHaskellCodeStart = "\\begin{mycode}",
+--   _texHaskellCodeEnd = "\\end{mycode}",
 --   _texSingleLineCommentStart = "SINGLE_LINE ",
 --   _lhsSingleLineCommentStart = "SINGLE_LINE "
 -- }
@@ -180,8 +221,8 @@ type family Mode a where
 --   _dedent = "dedent",
 --   _mdHaskellCodeStart = "```haskell",
 --   _mdHaskellCodeEnd = "```",
---   _texHaskellCodeStart = "\\begin{code}",
---   _texHaskellCodeEnd = "\\end{code}",
+--   _texHaskellCodeStart = "\\begin{mycode}",
+--   _texHaskellCodeEnd = "\\end{mycode}",
 --   _texSingleLineCommentStart = "SINGLE_LINE ",
 --   _lhsSingleLineCommentStart = "SINGLE_LINE "
 -- }
@@ -206,9 +247,9 @@ data Config (a :: Mode') = Config
   , _texHaskellCodeEnd :: Mode a
   -- ^ Mark the end of a @Haskell@ code block in @TeX@.
   , _texSingleLineCommentStart :: Mode a
-  -- ^ Mark start of a comment that must be single-line.
+  -- ^ Mark start of a comment that must be single-line in @TeX@.
   , _lhsSingleLineCommentStart :: Mode a
-  -- ^ Mark start of a comment that must be single-line
+  -- ^ Mark start of a comment that must be single-line in @Literate Haskell@.
   }
   deriving (Generic)
 
@@ -243,8 +284,8 @@ instance Default (Config Internal) where
     _dedent = "LIMA_DEDENT"
     _mdHaskellCodeStart = "```haskell"
     _mdHaskellCodeEnd = "```"
-    _texHaskellCodeStart = "\\begin{code}"
-    _texHaskellCodeEnd = "\\end{code}"
+    _texHaskellCodeStart = "\\begin{mycode}"
+    _texHaskellCodeEnd = "\\end{mycode}"
     _texSingleLineCommentStart = "SINGLE_LINE"
     _lhsSingleLineCommentStart = "SINGLE_LINE"
 
@@ -565,36 +606,40 @@ exampleNonTexTokens = normalizeTokens exampleNonTexTokens'
 --   Indent {n = 3},
 --   Disabled {manyLines = ["-- What's the answer?"]},
 --   Indent {n = 1},
---   Indent {n = 2},
---   Text {someLines = "\\begin{code}" :| ["","Intermediate results"]},
+--   Indent {n = 0},
+--   Text {someLines = "\\begin{mycode}" :| ["","Intermediate results"]},
 --   HaskellCode {manyLines = ["b = a 4","a = const 3"]},
---   Text {someLines = "\\end{code}" :| []},
+--   Text {someLines = "\\end{mycode}" :| []},
 --   Dedent,
---   Text {someLines = "\\begin{code}" :| []},
+--   Text {someLines = "\\begin{mycode}" :| []},
 --   HaskellCode {manyLines = ["answer = b * 14"]},
---   Text {someLines = "\\end{code}" :| []},
+--   Text {someLines = "\\end{mycode}" :| []},
 --   Comment {someLines = "world!" :| ["","Hello from comments,"]},
 --   CommentSingleLine {someLine = "Comment on a single line."}
 -- ]
+
 exampleTexTokens :: Tokens
 exampleTexTokens =
   normalizeTokens $
     [ Indent 3
     , Disabled{manyLines = ["-- What's the answer?"]}
     , Indent 1
-    , Indent 2
+    , Indent 0
     , Text{someLines = "Intermediate results" :| []}
-    , Text{someLines = "\\begin{code}" :| []}
+    , codeStart
     , HaskellCode ["   b = a 4", "   a = const 3"]
-    , Text{someLines = "\\end{code}" :| []}
+    , codeEnd
     , Dedent
-    , Text{someLines = "\\begin{code}" :| []}
+    , codeStart
     , HaskellCode ["answer = b * 14"]
-    , Text{someLines = "\\end{code}" :| []}
+    , codeEnd
     , Comment ("Hello from comments," :| [])
     , Comment ("world!" :| [])
     , CommentSingleLine ("Comment on a single line.")
     ]
+  where 
+    codeStart = Text{someLines = def @(Config Internal) ^. texHaskellCodeStart :| []}
+    codeEnd = Text{someLines = def @(Config Internal) ^. texHaskellCodeEnd :| []}
 
 -- | Compose a function that converts a document in one 'Format' to a document in another 'Format'.
 convertTo :: Format -> Format -> Config User -> T.Text -> T.Text
@@ -712,20 +757,20 @@ errorNotEnoughTokens format = error $ "Got not enough tokens when converting 'To
 -- <BLANKLINE>
 -- % LIMA_INDENT 1
 -- <BLANKLINE>
--- % LIMA_INDENT 2
+-- % LIMA_INDENT 0
 -- <BLANKLINE>
 -- Intermediate results
 -- <BLANKLINE>
--- \begin{code}
---   a = const 3
---   b = a 4
--- \end{code}
+-- \begin{mycode}
+-- a = const 3
+-- b = a 4
+-- \end{mycode}
 -- <BLANKLINE>
 -- % LIMA_DEDENT
 -- <BLANKLINE>
--- \begin{code}
+-- \begin{mycode}
 -- answer = b * 14
--- \end{code}
+-- \end{mycode}
 -- <BLANKLINE>
 -- % Hello from comments,
 -- <BLANKLINE>
@@ -898,6 +943,7 @@ texToTokens (toConfigInternal -> conf@Config{..}) xs = tokens
 -- % LIMA_INDENT 2
 -- <BLANKLINE>
 -- - Intermediate results
+-- <BLANKLINE>
 -- >   a = const 3
 -- >   b = a 4
 -- <BLANKLINE>
@@ -924,32 +970,19 @@ lhsFromTokens config tokens = mkFromTokens lhsFromTokens' config tokens
 -- These 'T.Text's are concatenated in 'lhsFromTokens'.
 lhsFromTokens' :: Config User -> Tokens -> [T.Text]
 lhsFromTokens' (toConfigInternal -> Config{..}) blocks =
-  dropEmpties $ reverse (T.intercalate "\n" . reverse <$> (fromTokens (Dedent : blocks) (0, [])))
+  dropEmpties $ reverse (T.intercalate "\n" . reverse <$> (fromTokens (blocks) (0, [])))
  where
   fromTokens :: Tokens -> (Int, [[T.Text]]) -> [[T.Text]]
-  fromTokens bs'@(_ : cur : bs) (curIndent, rs) =
-    fromTokens (cur : bs) (translate curIndent bs' rs)
-  fromTokens [_] (_, rs) = rs
-  fromTokens _ _ = errorNotEnoughTokens Lhs
-  translate curIndent (prev : cur : _) rs =
+  fromTokens (cur : bs) (curIndent, rs) =
+    fromTokens bs (translate curIndent (cur : bs) rs)
+  fromTokens [] (_, rs) = rs
+  translate curIndent (cur : _) rs =
     case cur of
-      Indent{..} -> (n,) $ [lhsCommentSpace <> _indent <> " " <> T.pack (show n)] : [] : rs
-      Dedent -> (0,) $ [lhsCommentSpace <> _dedent] : [] : rs
-      Disabled{..} -> (0,) $ [lhsCommentSpace <> _enable] : [] : (prependLhsComment <$> manyLines) : [] : [lhsCommentSpace <> _disable] : [] : rs
-      HaskellCode{..} ->
-        (curIndent,) $
-          ((lhsHsCodeSpace <>) . indentN curIndent <$> manyLines)
-            : ( case prev of
-                  Text{} -> rs
-                  _ -> [] : rs
-              )
-      Text{..} ->
-        (curIndent,) $
-          toList (lhsEscapeHash <$> someLines)
-            : ( case prev of
-                  HaskellCode{} -> rs
-                  _ -> [] : rs
-              )
+      Indent{..} -> (n, [lhsCommentSpace <> _indent <> " " <> T.pack (show n)] : [] : rs)
+      Dedent -> (0, [lhsCommentSpace <> _dedent] : [] : rs)
+      Disabled{..} -> (0, [lhsCommentSpace <> _enable] : [] : (prependLhsComment <$> manyLines) : [] : [lhsCommentSpace <> _disable] : [] : rs)
+      HaskellCode{..} -> (curIndent, ((lhsHsCodeSpace <>) . indentN curIndent <$> manyLines) : [] : rs)
+      Text{..} -> (curIndent, toList (lhsEscapeHash <$> someLines) : [] : rs)
       Comment{someLines = t :| ts} -> (curIndent, (prependLhsComment <$> t : ts) : [] : rs)
       CommentSingleLine{someLine} -> (curIndent, [prependLhsComment $ _lhsSingleLineCommentStart <> someLine] : [] : rs)
   translate _ _ _ = errorNotEnoughTokens Lhs
