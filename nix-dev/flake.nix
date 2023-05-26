@@ -7,8 +7,6 @@
     flake-utils.follows = "flake-utils_/flake-utils";
     haskell-tools.url = "github:deemp/flakes?dir=language-tools/haskell";
     devshell.url = "github:deemp/flakes?dir=devshell";
-    haskell-language-server_.url = "github:deemp/flakes?dir=source-flake/haskell-language-server";
-    haskell-language-server.follows = "haskell-language-server_/haskell-language-server";
   };
   outputs = inputs: inputs.flake-utils.lib.eachDefaultSystem (system:
     let
@@ -17,9 +15,9 @@
       inherit (inputs.codium.configs.${system}) extensions settingsNix;
       inherit (inputs.devshell.functions.${system}) mkCommands mkRunCommandsDir mkShell;
       inherit (inputs.haskell-tools.functions.${system}) toolsGHC;
-      hls = inputs.haskell-language-server.packages.${system}.default;
+      
       # Next, set the desired GHC version
-      ghcVersion = "926";
+      ghcVersion = "927";
 
       # and the name of the package
       myPackageName = "lima";
@@ -50,7 +48,7 @@
         inherit override;
         packages = (ps: [ ps.myPackage ]);
       })
-        cabal hpack ghcid;
+        cabal hpack ghcid hls;
 
       tools = [
         hls
