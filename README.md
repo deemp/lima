@@ -16,6 +16,8 @@ Convert between files in different formats.
 
 - [markdown-unlit](https://hackage.haskell.org/package/markdown-unlit) - `markdown-unlit` is a custom unlit program. It can be used to extract Haskell code from Markdown files..
 
+- [unlit](https://hackage.haskell.org/package/unlit) - Tool to convert literate code between styles or to code.
+
 ## Supported formats
 
 - `Haskell` (`.hs`)
@@ -39,6 +41,14 @@ Convert between files in different formats.
 
 ## Ideas
 
+### TL;DR
+
+- Use comments from a `Haskell` file as tags to produce `Markdown` or `TeX`.
+- A file is read line by line, tags affect parsing of the following lines.
+- Usually, can convert the file back to the source format.
+
+### Full
+
 - I introduced tags into supported formats.
   - E.g., in `.hs` files, tags are multiline comments written on a single line like `{- LIMA_ENABLE -}`.
 - Tag names are configurable.
@@ -53,11 +63,11 @@ Convert between files in different formats.
 - Such a converter is usually invertible for a formatted document.
   - Converting a document `A` to a document `B`, then converting `B` to `A` doesn't change the content of `A`.
 
-## Setup
+## Suggested setup
 
 1. Create a test suite.
 1. Add `lima` and `text` to its dependencies.
-1. Create a test module. It can have the following content.
+1. Create a test module. It may have the following content.
 
     <!-- LIMA_INDENT 4 -->
 
@@ -78,7 +88,7 @@ This package has two such test suites:
 - [readme-hs-to-md](test/HsToMd/Main.hs) converts `README.hs` to `README.md`
 - [readme-md-to-hs](test/MdToHs/Main.hs) converts `README.md` to `README.hs`
 
-## Workflow
+## Possible workflow
 
 Here's a possible workflow for `Haskell` and `Markdown`:
 
@@ -90,7 +100,7 @@ Here's a possible workflow for `Haskell` and `Markdown`:
 
 ## Contribute
 
-Clone this repo and enter `lima`
+Clone this repo and enter `lima`.
 
 ```console
 git clone https://github.com/deemp/lima
