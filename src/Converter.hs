@@ -52,7 +52,7 @@
 -- 
 -- There are several forms of @Haskell@ code blocks in @Literate Haskell@ recognized by @GHC@.
 --
--- 1. Code between @\begin{code}@ and @\end{code}@ tags.
+-- 1. Code between @'\\begin{code}'@ and @'\\end{code}'@ tags.
 --
 --     @
 --     \begin{code}
@@ -63,7 +63,7 @@
 --     \end{code}
 --     @
 -- 
---     - The line starting with @\begin{code}@ cannot have other non-space characters after @\begin{code}@.
+--     - The line starting with @'\\begin{code}'@ cannot have other non-space characters after @'\\begin{code}'@.
 --     - The indentation of all expressions in code blocks must be the same.
 --
 -- 1. Code lines starting with @'> '@.
