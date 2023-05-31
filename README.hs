@@ -1,11 +1,20 @@
 {-
 # lima
 
-Convert between files in different formats.
+Sync your `README.md` with your `Haskell` codebase.
+
+## Supported formats
+
+Convert files between:
+
+- `Haskell` (`.hs`)
+- `Literate Haskell` (`.lhs`)
+- `GitHub Flavored Markdown` (`.md`)
+- `TeX` (`.tex`)
 
 ## Related works
 
-- [LiterateMarkdown](https://hackage.haskell.org/package/LiterateMarkdown) - `lima` is a fork of this (abandoned?) project.
+- [LiterateMarkdown](https://hackage.haskell.org/package/LiterateMarkdown) - `lima` is a fork of this abandoned project.
 
 - [pandoc](https://hackage.haskell.org/package/pandoc) - [supports](https://www.uv.es/wikibase/doc/cas/pandoc_manual_instalado.wiki?60) `Literate Haskell` and a ton of other formats.
 
@@ -15,16 +24,9 @@ Convert between files in different formats.
 
 - [agda2lagda](https://hackage.haskell.org/package/agda2lagda) - Generate a literate Agda/Haskell script from an Agda/Haskell script. Produces LaTeX or Markdown literate scripts.
 
-- [markdown-unlit](https://hackage.haskell.org/package/markdown-unlit) - `markdown-unlit` is a custom unlit program. It can be used to extract Haskell code from Markdown files..
+- [markdown-unlit](https://hackage.haskell.org/package/markdown-unlit) - `markdown-unlit` is a custom unlit program. It can be used to extract Haskell code from Markdown files.
 
 - [unlit](https://hackage.haskell.org/package/unlit) - Tool to convert literate code between styles or to code.
-
-## Supported formats
-
-- `Haskell` (`.hs`)
-- `Literate Haskell` (`.lhs`)
-- `GitHub Flavored Markdown` (`.md`)
-- `TeX` (`.tex`)
 
 ## Demo
 
@@ -44,14 +46,16 @@ Convert between files in different formats.
 
 ### TL;DR
 
-- Use comments from a `Haskell` file as tags to produce `Markdown` or `TeX`.
-- A file is read line by line, tags affect parsing of the following lines.
-- Usually, can convert the file back to the source format.
+- `Haskell` files can be type checked and nicely formatted.
+- Convert a `Haskell` file with tags (== special comments) to `Markdown` or `TeX`.
+- The file is parsed line by line, tags affect parsing of the following lines.
+- Usually, it's possible to convert the file back to the source format.
 
 ### Full
 
+- A document is a text in a supported format.
 - I introduced tags into supported formats.
-  - E.g., in `.hs` files, tags are multiline comments written on a single line like `{- LIMA_ENABLE -}`.
+  - E.g., in `.hs` documents, tags are multiline comments written on a single line like `{- LIMA_ENABLE -}`.
 - Tag names are configurable.
   - A user may set `on` instead of `LIMA_ENABLE`.
 - A document can be parsed into a list of tokens.
@@ -86,8 +90,8 @@ main = T.readFile "README.hs" >>= T.writeFile "README.md" . (Hs `convertTo` Md) 
 
 This package has two such test suites:
 
-- [readme-hs-to-md](test/HsToMd/Main.hs) converts `README.hs` to `README.md`
-- [readme-md-to-hs](test/MdToHs/Main.hs) converts `README.md` to `README.hs`
+- [readme-hs-to-md](test/HsToMd/Main.hs) converts `README.hs` to `README.md`.
+- [readme-md-to-hs](test/MdToHs/Main.hs) converts `README.md` to `README.hs`.
 
 ## Possible workflow
 
