@@ -6,7 +6,9 @@
     flake-utils_.url = "github:deemp/flakes?dir=source-flake/flake-utils";
     flake-utils.follows = "flake-utils_/flake-utils";
     haskell-tools.url = "github:deemp/flakes?dir=language-tools/haskell";
+    flakes-tools.url = "github:deemp/flakes?dir=flakes-tools";
     devshell.url = "github:deemp/flakes?dir=devshell";
+    workflows.url = "github:deemp/flakes?dir=workflows";
   };
   outputs = inputs: inputs.flake-utils.lib.eachDefaultSystem (system:
     let
@@ -15,7 +17,10 @@
       inherit (inputs.codium.configs.${system}) extensions settingsNix;
       inherit (inputs.devshell.functions.${system}) mkCommands mkRunCommandsDir mkShell;
       inherit (inputs.haskell-tools.functions.${system}) toolsGHC;
-      
+      inherit (inputs.flakes-tools.functions.${system}) mkFlakesTools;
+      inherit (inputs.workflows.functions.${system}) writeWorkflow installNix cacheNixDirs stepsIf expr run;
+      inherit (inputs.workflows.configs.${system}) nixCI steps names os strategies on env;
+
       # Next, set the desired GHC version
       ghcVersion = "927";
 
@@ -57,6 +62,8 @@
         ghcid
       ];
 
+      nix-dev = "nix-dev/";
+
       packages = {
         codium = mkCodium {
           extensions = { inherit (extensions) nix haskell misc github markdown; };
@@ -66,6 +73,45 @@
           inherit (settingsNix) haskell todo-tree files editor gitlens yaml
             git nix-ide workbench markdown-all-in-one markdown-language-features;
         };
+        inherit (mkFlakesTools [ "." "../" ]) updateLocks pushToCachix;
+        writeWorkflows =
+          writeWorkflow "CI" {
+            jobs = {
+              nixCI = {
+                name = "Nix CI";
+                strategy = strategies.nixCache;
+                runs-on = expr names.matrix.os;
+                steps =
+                  [
+                    steps.checkout
+                    (installNix { store = expr names.matrix.store; })
+                    (cacheNixDirs { keySuffix = "cachix"; store = expr names.matrix.store; restoreOnly = false; })
+                  ]
+                  ++
+                  (stepsIf ("${names.matrix.os} == '${os.ubuntu-20}'") [
+                    steps.configGitAsGHActions
+                    (
+                      let name = "Update flake locks"; in
+                      {
+                        inherit name;
+                        run = run.nixRunAndCommitDir nix-dev names.updateLocks name;
+                      }
+                    )
+                  ])
+                  ++ [
+                    steps.logInToCachix
+                    {
+                      name = "Push flakes to Cachix";
+                      env.CACHIX_CACHE = expr names.secrets.CACHIX_CACHE;
+                      run = run.nixRunDir nix-dev names.pushToCachix;
+                    }
+                  ]
+                ;
+              };
+            };
+            name = "Nix CI";
+            inherit on;
+          };
       };
 
       devShells.default = mkShell {
