@@ -85,10 +85,10 @@
                   [
                     steps.checkout
                     (installNix { store = expr names.matrix.store; })
-                    (cacheNixDirs { keySuffix = "cachix"; store = expr names.matrix.store; restoreOnly = false; })
                   ]
                   ++
                   (stepsIf ("${names.matrix.os} == '${os.ubuntu-20}'") [
+                    (cacheNixDirs { keySuffix = "cachix"; store = expr names.matrix.store; restoreOnly = false; })
                     steps.configGitAsGHActions
                     (
                       let name = "Update flake locks"; in
