@@ -78,10 +78,25 @@
                 dir = nix-dev;
                 steps_ = dir: [
                   steps.configGitAsGHActions
-                  (steps.updateLocks { inherit dir; needCommit = false; })
+                  (steps.updateLocks { inherit dir; doCommit = false; })
+                  (
+                    let name = "Convert README.hs to README.md"; in
+                    {
+                      run = run.nixScript {
+                        inherit dir;
+                        name = packages1.writeREADME.pname;
+                        doCommit = true;
+                        commitMessage = name;
+                      };
+                    }
+                  )
                   {
-                    name = "Convert README.hs to README.md";
-                    run = run.nixRunScript { inherit dir; name = packages1.writeREADME.pname; needCommit = true; };
+                    name = "Build lima";
+                    run = run.nix {
+                      dir = ".";
+                      doRun = false;
+                      scripts = [ "" "sdist" ];
+                    };
                   }
                 ];
               }

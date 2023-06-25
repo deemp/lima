@@ -29,9 +29,17 @@ jobs:
           nix build nix-dev/#updateLocks
           nix run nix-dev/#updateLocks
 
-      - name: Convert README.hs to README.md
-        run: |2
-          git commit -a -m "action: run scripts" && git push || echo ""
+      - run: |2
+          nix build nix-dev/#writeREADME
+          nix run nix-dev/#writeREADME
+
+          git commit -a -m "action: Convert README.hs to README.md" && git push || echo ""
+      - name: Build lima
+        run: |2+
+          nix build .#
+
+          nix build .#sdist
+
       - name: Log in to Cachix
         run: |
           nix build nixpkgs#cachix
