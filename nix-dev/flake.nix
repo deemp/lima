@@ -72,7 +72,7 @@
               inherit (settingsNix) haskell todo-tree files editor gitlens yaml
                 git nix-ide workbench markdown-all-in-one markdown-language-features;
             };
-            inherit (mkFlakesTools [ "." "../" ]) updateLocks pushToCachix;
+            inherit (mkFlakesTools [ "." nix-dev ]) updateLocks pushToCachix;
             writeWorkflows = writeWorkflow "CI" (
               nixCI_ {
                 dir = nix-dev;
