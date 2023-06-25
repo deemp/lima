@@ -74,7 +74,7 @@
             };
             inherit (mkFlakesTools [ "." nix-dev ]) updateLocks pushToCachix;
             writeWorkflows = writeWorkflow "CI" (
-              nixCI_ {
+              (nixCI_ {
                 dir = nix-dev;
                 steps_ = dir: stepsIf ("${names.matrix.os} == '${os.ubuntu-20}'") [
                   steps.configGitAsGHActions
@@ -103,6 +103,10 @@
                     };
                   }
                 ];
+              }) // {
+                permissions = {
+                  contents = "write";
+                };
               }
             );
           };
