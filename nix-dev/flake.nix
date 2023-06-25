@@ -18,7 +18,7 @@
       inherit (inputs.devshell.lib.${system}) mkCommands mkRunCommandsDir mkShell;
       inherit (inputs.flakes-tools.lib.${system}) mkFlakesTools;
       inherit (inputs.haskell-tools.lib.${system}) toolsGHC;
-      inherit (inputs.workflows.lib.${system}) writeWorkflow steps nixCI_ run;
+      inherit (inputs.workflows.lib.${system}) writeWorkflow steps nixCI_ run stepsIf names os;
       inherit (inputs.drv-tools.lib.${system}) mkShellApps mkBin;
 
       # Next, set the desired GHC version
@@ -76,20 +76,24 @@
             writeWorkflows = writeWorkflow "CI" (
               nixCI_ {
                 dir = nix-dev;
-                steps_ = dir: [
+                steps_ = dir: stepsIf ("${names.matrix.os} == '${os.ubuntu-20}'") [
                   steps.configGitAsGHActions
                   (steps.updateLocks { inherit dir; doCommit = false; })
-                  (
-                    let name = "Convert README.hs to README.md"; in
-                    {
-                      run = run.nixScript {
-                        inherit dir;
-                        name = packages1.writeREADME.pname;
-                        doCommit = true;
-                        commitMessage = name;
-                      };
-                    }
-                  )
+                  {
+                    name = "Convert README.hs to README.md";
+                    run = run.nixScript {
+                      inherit dir;
+                      name = packages1.writeREADME.pname;
+                    };
+                  }
+                  {
+                    name = "Commit changes";
+                    run = run.nix {
+                      doCommit = true;
+                      commitMessages = [ "Update flake locks" "Convert README.hs to README.md" ];
+                    };
+                  }
+                ] ++ [
                   {
                     name = "Build lima";
                     run = run.nix {
