@@ -28,6 +28,8 @@ Convert files between:
 
 - [unlit](https://hackage.haskell.org/package/unlit) - Tool to convert literate code between styles or to code.
 
+- [design-tools](https://github.com/isovector/design-tools) - a Pandoc filter for building a book from Markdown.
+
 ## Demo
 
 ### Markdown
