@@ -1,36 +1,63 @@
 {
-  inputs = {
-    nixpkgs_.url = "github:deemp/flakes?dir=source-flake/nixpkgs";
-    nixpkgs.follows = "nixpkgs_/nixpkgs";
-    flake-utils_.url = "github:deemp/flakes?dir=source-flake/flake-utils";
-    flake-utils.follows = "flake-utils_/flake-utils";
-  };
-  outputs = inputs: inputs.flake-utils.lib.eachDefaultSystem (system:
+  inputs.flakes.url = "github:deemp/flakes";
+  outputs = inputs:
     let
-      pkgs = inputs.nixpkgs.legacyPackages.${system};
+      inputs_ =
+        let flakes = inputs.flakes.flakes; in
+        {
+          inherit (flakes.source-flake) nixpkgs flake-utils formatter;
+          haskell-tools = flakes.language-tools.haskell;
+          inherit flakes;
+        };
 
-      packageName = "lima";
+      outputs = outputs_ { } // { inputs = inputs_; outputs = outputs_; };
 
-      ghcVersion = "928";
+      outputs_ =
+        inputs__:
+        let inputs = inputs_ // inputs__; in
+        inputs.flake-utils.lib.eachDefaultSystem
+          (system:
+          let
+            pkgs = inputs.nixpkgs.legacyPackages.${system};
+            inherit (inputs.haskell-tools.lib.${system}) toolsGHC;
+            
+            packageName = "lima";
 
-      hpkgs = pkgs.haskell.packages."ghc${ghcVersion}";
-      
-      package = pkgs.haskell.lib.overrideCabal (hpkgs.callCabal2nix packageName ./. { }) (
-        x: {
-          testHaskellDepends = [
-            hpkgs.doctest-parallel_0_3_0_1
-          ] ++ (x.testHaskellDepends or [ ]);
-        }
-      );
+            override = {
+              overrides = self: super: {
+                ${packageName} = pkgs.haskell.lib.overrideCabal (super.callCabal2nix packageName ./. { }) (
+                  x: {
+                    testHaskellDepends = [
+                      super.doctest-parallel_0_3_0_1
+                    ] ++ (x.testHaskellDepends or [ ]);
+                  }
+                );
+              };
+            };
 
-      packages = {
-        default = package;
-        sdist = hpkgs.buildFromCabalSdist package;
-      };
+            ghcVersion = "928";
+
+            toolsGHC_ = (toolsGHC {
+              version = ghcVersion;
+              inherit override;
+              packages = (ps: [ ps.${packageName} ]);
+            });
+
+            package = toolsGHC_.haskellPackages.${packageName};
+
+            packages = {
+              default = package;
+              sdist = toolsGHC_.haskellPackages.buildFromCabalSdist package;
+            };
+          in
+          {
+            inherit packages toolsGHC_;
+          })
+        // {
+          inherit (inputs) formatter;
+        };
     in
-    {
-      inherit packages;
-    });
+    outputs;
 
   nixConfig = {
     extra-substituters = [
