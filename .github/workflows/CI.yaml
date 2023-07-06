@@ -57,13 +57,6 @@ jobs:
 
           nix build .#sdist
 
-      - env:
-          CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
-          CACHIX_CACHE: ${{ secrets.CACHIX_CACHE }}
-        name: Push flakes to Cachix
-        run: |+
-          nix run nix-dev/#pushToCachix
-
     strategy:
       matrix:
         os:

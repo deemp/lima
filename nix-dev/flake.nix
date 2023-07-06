@@ -51,6 +51,7 @@
                   (nixCI {
                     dir = nix-dev;
                     doCacheNix = true;
+                    doPushToCachix = false;
                     updateLocksArgs = { doCommit = false; doGitPull = false; };
                     steps = dir: stepsIf ("${names.matrix.os} == '${os.ubuntu-22}'") [
                       {
