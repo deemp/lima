@@ -68,6 +68,8 @@
                           commitMessages = [ "Format" "Update flake locks" "Convert README.hs to README.md" ];
                         };
                       }
+                    ]
+                    ++ [
                       {
                         name = "Build lima";
                         run = run.nix {

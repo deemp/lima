@@ -50,8 +50,7 @@ jobs:
             -m "action: Convert README.hs to README.md" \
                                  && git push || echo "push failed!"
 
-      - if: matrix.os == 'ubuntu-22.04'
-        name: Build lima
+      - name: Build lima
         run: |+
           nix build .#
 
