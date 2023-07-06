@@ -20,7 +20,7 @@
           let
             pkgs = inputs.nixpkgs.legacyPackages.${system};
             inherit (inputs.haskell-tools.lib.${system}) toolsGHC;
-            
+
             packageName = "lima";
 
             override = {
