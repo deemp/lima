@@ -10,7 +10,7 @@
         {
           inherit (flakes.source-flake) nixpkgs flake-utils formatter;
           inherit (flakes) drv-tools workflows flakes-tools devshell codium;
-          haskell-tools = flakes.languagetools.haskell;
+          haskell-tools = flakes.language-tools.haskell;
           inherit root;
         };
 
