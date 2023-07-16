@@ -53,8 +53,8 @@
                     doCacheNix = true;
                     doPushToCachix = false;
                     cacheNixArgs = {
-                      linuxMaxStoreSize = 100000000;
-                      macosMaxStoreSize = 100000000;
+                      linuxMaxStoreSize = 900000000;
+                      macosMaxStoreSize = 900000000;
                       keyJob = "ci";
                     };
                     updateLocksArgs = { doCommit = false; doGitPull = false; };
