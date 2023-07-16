@@ -71,6 +71,8 @@ Convert files between:
 
 ## Suggested setup
 
+### Test suite
+
 1. Create a test suite.
 1. Add `lima` and `text` to its dependencies.
 1. Create a test module. It may have the following content.
@@ -87,8 +89,6 @@ Convert files between:
 
 <!-- LIMA_DEDENT -->
 
-### Example
-
 This package has two such test suites:
 
 - [readme-hs-to-md](test/HsToMd/Main.hs) converts `README.hs` to `README.md`.
@@ -96,7 +96,7 @@ This package has two such test suites:
 
 ## Suggested workflow
 
-Here's a possible suggested for `Haskell` and `Markdown`:
+Here's a suggested workflow for `Haskell` and `Markdown`:
 
 1. Edit the code in a `README.hs` using [Haskell Language Server](https://github.com/haskell/haskell-language-server).
 1. Convert `README.hs` to a `README.md`. Comments from `README.hs` become text in `README.md`.
