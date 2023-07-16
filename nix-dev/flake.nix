@@ -30,9 +30,9 @@
           inherit (inputs.drv-tools.lib.${system}) mkShellApps getExe;
 
           # Next, set the desired GHC version
-          inherit (inputs.root.outputs.toolsGHC_.${system}) cabal hls hpack ghcid;
+          inherit (inputs.root.outputs.toolsGHC_.${system}) cabal hls hpack fourmolu ghcid;
 
-          tools = [ hls cabal hpack ghcid ];
+          tools = [ hls cabal hpack ghcid fourmolu ];
 
           nix-dev = "nix-dev/";
 

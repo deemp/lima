@@ -38,7 +38,7 @@ hash = "#"
 
 -- | Drop a prefix of a line with length of a given line
 dropLen :: T.Text -> T.Text -> T.Text
-dropLen x y = T.drop (T.length x) y
+dropLen x = T.drop (T.length x)
 
 -- | Check if a list starts with a given list
 startsWith :: T.Text -> T.Text -> Bool
@@ -156,11 +156,11 @@ dropLhsComment l lineNumber
 
 -- | Replace "\\#" with "#" in a 'T.Text' prefix.
 lhsUnescapeHash :: T.Text -> T.Text
-lhsUnescapeHash x = if x `startsWith` escapedHash then hash <> (dropLen escapedHash x) else x
+lhsUnescapeHash x = if x `startsWith` escapedHash then hash <> dropLen escapedHash x else x
 
 -- | Replace "#" with "\\#" in a 'T.Text' prefix.
 lhsEscapeHash :: T.Text -> T.Text
-lhsEscapeHash x = if x `startsWith` hash then escapedHash <> (dropLen hash x) else x
+lhsEscapeHash x = if x `startsWith` hash then escapedHash <> dropLen hash x else x
 
 -----------
 -- Markdown

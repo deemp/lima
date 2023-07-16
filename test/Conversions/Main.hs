@@ -1,7 +1,5 @@
 {-# OPTIONS_GHC -fplugin Debug.Breakpoint #-}
 
-import Lima.Converter
-import Lima.Converter.Internal
 import Data.List.NonEmpty (NonEmpty (..))
 import Data.String.Interpolate (i)
 import Data.Text qualified as T
@@ -10,6 +8,8 @@ import Hedgehog (Gen, MonadGen, MonadTest, Property, property, tripping)
 import Hedgehog.Gen qualified as Gen
 import Hedgehog.Range qualified as Range
 import Lens.Micro ((^.))
+import Lima.Converter
+import Lima.Converter.Internal
 import System.Directory (createDirectoryIfMissing)
 import System.IO (IOMode (WriteMode), withFile)
 import Test.Tasty (TestTree, defaultMain, testGroup, withResource)
@@ -88,7 +88,8 @@ testWrite format =
   let dir = [i|#{testDir}/#{showFormatExtension format}|]
    in withResource (createDirectoryIfMissing True dir) pure $
         const $
-          testGroup [i|Using #{selectDialectName format} tokens|] $
+          testGroup
+            [i|Using #{selectDialectName format} tokens|]
             (testFormatsWrite dir (selectFormats format) (selectTokens format))
 
 alphabet :: MonadGen m => m Char
@@ -99,9 +100,9 @@ genNonEmpty = Gen.nonEmpty (Range.constant 1 5) genLine
 
 genLine :: Gen T.Text
 genLine = do
-  indent <- Gen.text (Range.constant 0 5) (pure ' ')
+  indent_ <- Gen.text (Range.constant 0 5) (pure ' ')
   content <- Gen.text (Range.constant 1 5) alphabet
-  pure $ indent <> content
+  pure $ indent_ <> content
 
 genLines :: Gen [T.Text]
 genLines = Gen.list (Range.constant 1 5) genLine
@@ -144,7 +145,7 @@ genDisabled = do
 
 genTokensSublist :: Env => Gen Tokens
 genTokensSublist =
-  Gen.choice $ [genNonDisabled, (: []) <$> genDisabled]
+  Gen.choice [genNonDisabled, (: []) <$> genDisabled]
 
 genTokens :: Env => Gen Tokens
 genTokens = do
@@ -158,7 +159,7 @@ texGenCode = do
   let config = toConfigInternal ?config
   manyLines <- genLines
   let manyLines' = if null (stripEmpties manyLines) then ["a"] else manyLines
-  pure $
+  pure
     [ Text{someLines = config ^. texHaskellCodeStart :| []}
     , HaskellCode{manyLines = manyLines'}
     , Text{someLines = config ^. texHaskellCodeEnd :| []}
@@ -179,7 +180,7 @@ trippingTokens tokens =
 
 testTrippingTokens :: Env => Property
 testTrippingTokens = property do
-  tokens <- Gen.sample $ genTokens
+  tokens <- Gen.sample genTokens
   -- breakpointM
   trippingTokens tokens
 
@@ -196,4 +197,4 @@ testTripping :: Format -> TestTree
 testTripping format =
   let ?config = def; ?format = format
    in let ?genCode = selectGenCode format
-       in testProperty [i|Roundtrip #{selectDialectName format} tokens for all formats|] $ testTrippingTokens
+       in testProperty [i|Roundtrip #{selectDialectName format} tokens for all formats|] testTrippingTokens

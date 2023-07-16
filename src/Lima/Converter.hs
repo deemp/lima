@@ -49,7 +49,7 @@
 --             @
 --
 --      - There are no leading or trailing empty lines inside of 'Tokens'.
--- 
+--
 -- There are several forms of @Haskell@ code blocks in @Literate Haskell@ recognized by @GHC@.
 --
 -- 1. Code between @'\\begin{code}'@ and @'\\end{code}'@ tags.
@@ -62,7 +62,7 @@
 --        b = a
 --     \end{code}
 --     @
--- 
+--
 --     - The line starting with @'\\begin{code}'@ cannot have other non-space characters after @'\\begin{code}'@.
 --     - The indentation of all expressions in code blocks must be the same.
 --
@@ -80,15 +80,15 @@
 --
 --     \end{mycode}
 --     @
---     
+--
 --     - There must be at least a single empty line before and after each @Haskell@ code block.
 --     - Any text may surround @Haskell@ code blocks.
 --     - The indentation of all expressions in code blocks must be the same.
 --
 -- This library supports only the second form as this form is more versatile.
--- 
+--
 -- Moreover, this form does not require writing @Markdown@ tags like @\'```haskell\'@.
--- 
+--
 -- Such tags will automatically be printed when converting @Literate Haskell@ to @Markdown@.
 module Lima.Converter (
   -- * Config
@@ -165,6 +165,7 @@ import Data.Data (Data)
 import Data.Default (Default (def))
 import Data.List (intersperse)
 import Data.List.NonEmpty as NonEmpty (NonEmpty ((:|)), fromList, init, last, toList, (<|))
+import Data.String.Interpolate (i)
 import Data.Text qualified as T
 import GHC.Generics (Generic)
 import Lens.Micro (non, to, (&), (?~), (^.))
@@ -263,15 +264,14 @@ instance PrettyPrint (Config User) where
   pp :: Config User -> Pretty String
   pp (toConfigInternal -> config) =
     pp $
-      ( concatMap
-          ( \(a, b) ->
-              if
-                  | [a, b] == " _" -> "\n  "
-                  | [a, b] == "{_" -> "{\n  "
-                  | otherwise -> [a]
-          )
-          $ (zip (show config) (tail $ show config))
-      )
+      concatMap
+        ( \(a, b) ->
+            if
+              | [a, b] == " _" -> "\n  "
+              | [a, b] == "{_" -> "{\n  "
+              | otherwise -> [a]
+        )
+        (zip (show config) (tail $ show config))
         <> "\n}"
 
 instance Default (Config Internal) where
@@ -388,26 +388,25 @@ data Token
     Comment {someLines :: NonEmpty T.Text}
   | -- | A line of a comment that must be kept on a single-line.
     --
-    -- E.g., {- FOURMOLU_DISABLE -} from a @.hs@.
+    -- E.g., {\- FOURMOLU_DISABLE -\} from a @.hs@.
     CommentSingleLine {someLine :: T.Text}
   deriving (Show, Data, Eq)
 
 -- | A list of 'Token's.
 type Tokens = [Token]
 
-instance PrettyPrint (Tokens) where
+instance PrettyPrint Tokens where
   pp :: Tokens -> Pretty String
   pp ts =
     Pretty $
-      ( concatMap
-          ( \(a, b) ->
-              if
-                  | a == ',' && isAlpha b -> ",\n  "
-                  | a == '[' && isAlpha b -> "[\n  "
-                  | otherwise -> [a]
-          )
-          $ (zip (show ts) (tail $ show ts))
-      )
+      concatMap
+        ( \(a, b) ->
+            if
+              | a == ',' && isAlpha b -> ",\n  "
+              | a == '[' && isAlpha b -> "[\n  "
+              | otherwise -> [a]
+        )
+        (zip (show ts) (tail $ show ts))
         <> "\n]"
 
 -- | Select a printer function based on a given format.
@@ -465,7 +464,7 @@ exampleNonTexTokens' =
   , HaskellCode ["answer = b * 14"]
   , Comment ("Hello from comments," :| [])
   , Comment ("world!" :| [])
-  , CommentSingleLine ("Comment on a single line.")
+  , CommentSingleLine "Comment on a single line."
   , Text ("Hello from text," :| [])
   , Text ("world!" :| [])
   ]
@@ -578,7 +577,7 @@ stripTokens xs =
 --   Text {someLines = "world!" :| ["","Hello from text,"]}
 -- ]
 normalizeTokens :: Tokens -> Tokens
-normalizeTokens tokens = stripTokens $ mergeTokens $ tokens
+normalizeTokens tokens = stripTokens $ mergeTokens tokens
 
 -- | Normalized 'exampleNonTexTokens''.
 --
@@ -617,10 +616,9 @@ exampleNonTexTokens = normalizeTokens exampleNonTexTokens'
 --   Comment {someLines = "world!" :| ["","Hello from comments,"]},
 --   CommentSingleLine {someLine = "Comment on a single line."}
 -- ]
-
 exampleTexTokens :: Tokens
 exampleTexTokens =
-  normalizeTokens $
+  normalizeTokens
     [ Indent 3
     , Disabled{manyLines = ["-- What's the answer?"]}
     , Indent 1
@@ -635,11 +633,11 @@ exampleTexTokens =
     , codeEnd
     , Comment ("Hello from comments," :| [])
     , Comment ("world!" :| [])
-    , CommentSingleLine ("Comment on a single line.")
+    , CommentSingleLine "Comment on a single line."
     ]
-  where 
-    codeStart = Text{someLines = def @(Config Internal) ^. texHaskellCodeStart :| []}
-    codeEnd = Text{someLines = def @(Config Internal) ^. texHaskellCodeEnd :| []}
+ where
+  codeStart = Text{someLines = def @(Config Internal) ^. texHaskellCodeStart :| []}
+  codeEnd = Text{someLines = def @(Config Internal) ^. texHaskellCodeEnd :| []}
 
 -- | Compose a function that converts a document in one 'Format' to a document in another 'Format'.
 convertTo :: Format -> Format -> Config User -> T.Text -> T.Text
@@ -698,13 +696,18 @@ parseLineToToken Config{..} format prev l lineNumber
         _ -> [Comment (l :| []), prev]
 
 -- | Show error with line number for a token.
-errorExpectedToken :: (Data a1, Show a2, Show a3) => a2 -> a3 -> a1 -> a4
+errorExpectedToken :: Int -> Token -> Token -> a
 errorExpectedToken lineNumber lastToken expectedToken =
-  error $
-    ("Wrong state at line: " <> show lineNumber <> ".\n\n")
-      <> ("Please, create an issue in the package repository.\n\n")
-      <> ("Expected last token: " <> constructorName expectedToken <> "\n\n")
-      <> ("Got last token: " <> show lastToken <> "\n\n")
+  error
+    [i|
+      Wrong state at line: #{lineNumber}.
+
+      Expected last token: #{constructorName expectedToken}.
+
+      Got last token: #{lastToken}.
+
+      Please, create an issue in the package repository.
+    |]
 
 errorNotEnoughTokens :: Format -> a
 errorNotEnoughTokens format = error $ "Got not enough tokens when converting 'Tokens' to " <> showFormatName format
@@ -787,7 +790,7 @@ texFromTokens = mkFromTokens texFromTokens'
 -- These 'T.Text's are concatenated in 'texFromTokens'.
 texFromTokens' :: Config User -> Tokens -> [T.Text]
 texFromTokens' (toConfigInternal -> Config{..}) tokens =
-  dropEmpties $ reverse $ (T.intercalate "\n" . reverse <$> (fromTokens (Dedent : tokens) (0, [])))
+  dropEmpties $ reverse (T.intercalate "\n" . reverse <$> fromTokens (Dedent : tokens) (0, []))
  where
   fromTokens :: Tokens -> (Int, [[T.Text]]) -> [[T.Text]]
   fromTokens bs'@(_ : cur : bs) (curIndent, rs) =
@@ -798,7 +801,7 @@ texFromTokens' (toConfigInternal -> Config{..}) tokens =
     case cur of
       Indent{..} -> (n,) $ [texCommentSpace <> _indent <> " " <> T.pack (show n)] : [] : rs
       Dedent -> (0,) $ [texCommentSpace <> _dedent] : [] : rs
-      Disabled{..} -> (0,) $ [[texCommentSpace <> _enable], [], (prependTexComment <$> manyLines), [], [texCommentSpace <> _disable], []] <> rs
+      Disabled{..} -> (0,) $ [[texCommentSpace <> _enable], [], prependTexComment <$> manyLines, [], [texCommentSpace <> _disable], []] <> rs
       HaskellCode{..} ->
         (curIndent,) $
           (indentN curIndent <$> manyLines)
@@ -830,26 +833,21 @@ texToTokens (toConfigInternal -> conf@Config{..}) xs = tokens
   toTokens :: State -> [(Int, T.Text)] -> Tokens -> Tokens
   toTokens State{..} ((lineNumber, l) : ls) result@(r : rs)
     | inDisabled =
-        if
-            | -- enable
-              l `startsWith` (texCommentSpace <> _enable) ->
-                toTokens def ls result
-            | -- copy lines
-              otherwise ->
-                toTokens def{inDisabled} ls $
-                  case r of
-                    Disabled{..} -> (r{manyLines = dropTexComment l lineNumber : manyLines} : rs)
-                    _ -> errorExpected Disabled{}
+        if l `startsWith` (texCommentSpace <> _enable)
+          then toTokens def ls result
+          else -- copy lines
+          toTokens def{inDisabled} ls $
+            case r of
+              Disabled{..} -> r{manyLines = dropTexComment l lineNumber : manyLines} : rs
+              _ -> errorExpected Disabled{}
     | inHaskellCode =
-        if
-            | -- end of a snippet
-              stripSpaces l `startsWith` _texHaskellCodeEnd ->
-                toTokens def{inText = True} ls (Text{someLines = l :| []} : result)
-            | otherwise ->
-                toTokens def{inHaskellCode} ls $
-                  case r of
-                    HaskellCode{..} -> (r{manyLines = l : manyLines} : rs)
-                    _ -> errorExpected HaskellCode{}
+        if -- end of a snippet
+        stripSpaces l `startsWith` _texHaskellCodeEnd
+          then toTokens def{inText = True} ls (Text{someLines = l :| []} : result)
+          else toTokens def{inHaskellCode} ls $
+            case r of
+              HaskellCode{..} -> r{manyLines = l : manyLines} : rs
+              _ -> errorExpected HaskellCode{}
     | stripSpaces l `startsWith` _texHaskellCodeStart =
         toTokens def{inHaskellCode = True} ls $
           HaskellCode{manyLines = []}
@@ -859,13 +857,12 @@ texToTokens (toConfigInternal -> conf@Config{..}) xs = tokens
     | -- Comment on a single line.
       l `startsWith` texCommentSpace =
         let l' = dropLen texCommentSpace l
-         in if
-                | -- disable
-                  l' `startsWith` _disable ->
-                    toTokens def{inDisabled = True} ls (Disabled [] : result)
-                | otherwise ->
-                    toTokens def ls $
-                      parseLineToToken conf TeX r l' lineNumber <> rs
+         in if -- disable
+            l' `startsWith` _disable
+              then toTokens def{inDisabled = True} ls (Disabled [] : result)
+              else
+                toTokens def ls $
+                  parseLineToToken conf TeX r l' lineNumber <> rs
     | inText =
         toTokens def{inText} ls $
           case r of
@@ -961,7 +958,7 @@ texToTokens (toConfigInternal -> conf@Config{..}) xs = tokens
 -- <BLANKLINE>
 -- world!
 lhsFromTokens :: Config User -> Tokens -> T.Text
-lhsFromTokens config tokens = mkFromTokens lhsFromTokens' config tokens
+lhsFromTokens = mkFromTokens lhsFromTokens'
 
 -- | Convert 'Tokens' to @Literate Haskell@ code.
 --
@@ -970,7 +967,7 @@ lhsFromTokens config tokens = mkFromTokens lhsFromTokens' config tokens
 -- These 'T.Text's are concatenated in 'lhsFromTokens'.
 lhsFromTokens' :: Config User -> Tokens -> [T.Text]
 lhsFromTokens' (toConfigInternal -> Config{..}) blocks =
-  dropEmpties $ reverse (T.intercalate "\n" . reverse <$> (fromTokens (blocks) (0, [])))
+  dropEmpties $ reverse (T.intercalate "\n" . reverse <$> fromTokens blocks (0, []))
  where
   fromTokens :: Tokens -> (Int, [[T.Text]]) -> [[T.Text]]
   fromTokens (cur : bs) (curIndent, rs) =
@@ -1000,32 +997,30 @@ lhsToTokens (toConfigInternal -> conf@Config{..}) xs = tokens
   toTokens :: State -> [(Int, T.Text)] -> Tokens -> Tokens
   toTokens State{..} ((lineNumber, lhsUnescapeHash -> l) : ls) result@(r : rs)
     | inDisabled =
-        if
-            | -- enable
-              l `startsWith` (lhsCommentSpace <> _enable) ->
-                toTokens def ls result
-            | -- copy lines
-              otherwise ->
-                toTokens def{inDisabled} ls $
-                  case r of
-                    Disabled{..} -> (r{manyLines = dropLhsComment l lineNumber : manyLines} : rs)
-                    _ -> errorExpected Disabled{}
+        if -- enable
+        l `startsWith` (lhsCommentSpace <> _enable)
+          then toTokens def ls result
+          else -- copy lines
+
+          toTokens def{inDisabled} ls $
+            case r of
+              Disabled{..} -> r{manyLines = dropLhsComment l lineNumber : manyLines} : rs
+              _ -> errorExpected Disabled{}
     | -- Comment on a single line.
       l `startsWith` lhsCommentSpace =
         let l' = dropLen lhsCommentSpace l
-         in if
-                | -- disable
-                  l' `startsWith` _disable ->
-                    toTokens def{inDisabled = True} ls (Disabled [] : result)
-                | otherwise ->
-                    toTokens def ls $
-                      parseLineToToken conf Lhs r l' lineNumber <> rs
+         in if -- disable
+            l' `startsWith` _disable
+              then toTokens def{inDisabled = True} ls (Disabled [] : result)
+              else
+                toTokens def ls $
+                  parseLineToToken conf Lhs r l' lineNumber <> rs
     | -- start of a snippet
       l `startsWith` lhsHsCodeSpace =
         toTokens def{inHaskellCode = True} ls $
           let l' = dropLen lhsHsCodeSpace l
            in case r of
-                HaskellCode{..} -> (r{manyLines = l' : manyLines} : rs)
+                HaskellCode{..} -> r{manyLines = l' : manyLines} : rs
                 _ -> HaskellCode{manyLines = [l']} : result
     | inText =
         toTokens def{inText} ls $
@@ -1176,7 +1171,7 @@ mdToTokens (toConfigInternal -> conf@Config{..}) xs = tokens
           else -- copy lines
           toTokens def{inDisabled} ls $
             case r of
-              Disabled{..} -> (r{manyLines = l : manyLines} : rs)
+              Disabled{..} -> r{manyLines = l : manyLines} : rs
               _ -> errorExpected Disabled{}
     | inComment =
         if l `startsWith` mdCommentClose
@@ -1185,7 +1180,7 @@ mdToTokens (toConfigInternal -> conf@Config{..}) xs = tokens
           else -- copy lines
           toTokens def{inComment} ls $
             case r of
-              Comment{..} -> (r{someLines = l <| someLines} : rs)
+              Comment{..} -> r{someLines = l <| someLines} : rs
               _ -> errorExpected Comment{}
     | inHaskellCode =
         if stripSpaces l `startsWith` _mdHaskellCodeEnd
@@ -1194,7 +1189,7 @@ mdToTokens (toConfigInternal -> conf@Config{..}) xs = tokens
           else -- copy lines
           toTokens def{inHaskellCode} ls $
             case r of
-              HaskellCode{..} -> (r{manyLines = l : manyLines} : rs)
+              HaskellCode{..} -> r{manyLines = l : manyLines} : rs
               _ -> errorExpected HaskellCode{}
     -- Doesn't matter if in text
 
@@ -1205,12 +1200,12 @@ mdToTokens (toConfigInternal -> conf@Config{..}) xs = tokens
       l `startsWith` mdCommentOpenSpace =
         let l' = dropLen mdCommentOpenSpace l
          in if
-                | l' == _disable ->
-                    toTokens def{inDisabled = True} ls (Disabled [] : res)
-                | T.null l' -> error $ errorEmptyCommentAt lineNumber
-                | otherwise ->
-                    toTokens def{inComment = True} ls $
-                      Comment (l' :| []) : res
+              | l' == _disable ->
+                  toTokens def{inDisabled = True} ls (Disabled [] : res)
+              | T.null l' -> error $ errorEmptyCommentAt lineNumber
+              | otherwise ->
+                  toTokens def{inComment = True} ls $
+                    Comment (l' :| []) : res
     | -- start of a haskell snippet
       stripSpaces l `startsWith` _mdHaskellCodeStart =
         toTokens def{inHaskellCode = True} ls (HaskellCode [] : res)
@@ -1221,13 +1216,11 @@ mdToTokens (toConfigInternal -> conf@Config{..}) xs = tokens
             Text{..} -> Text{someLines = l <| someLines} : rs
             _ -> errorExpected Text{}
     | otherwise =
-        if
-            | T.null l ->
-                -- skip
-                toTokens def ls res
-            | otherwise ->
-                -- start a text
-                toTokens def{inText = True} ls $ Text{someLines = l :| []} : res
+        if T.null l
+          then -- skip
+            toTokens def ls res
+          else -- start a text
+            toTokens def{inText = True} ls $ Text{someLines = l :| []} : res
    where
     errorExpected = error . errorExpectedToken lineNumber r
   toTokens _ _ res = res
@@ -1363,51 +1356,46 @@ hsToTokens (toConfigInternal -> conf@Config{..}) xs = tokens
   toTokens :: State -> [(Int, T.Text)] -> Tokens -> Tokens
   toTokens State{..} ((lineNumber, l) : ls) res@(r : rs)
     | inText =
-        if
-            | l `startsWith` hsCommentClose ->
-                case r of
-                  Text{someLines}
-                    | stripEmpties (toList someLines) == [] ->
-                        error $
-                          ("No text in a 'Text' token ending at line " <> show lineNumber <> ".\n\n")
-                            <> "Please, write some text between '{-\\n' and '\\n-}'."
-                    | otherwise -> toTokens def ls res
-                  _ -> errorExpected Text{}
-            | otherwise ->
-                -- copy lines
-                toTokens (def{inText}) ls $
-                  case r of
-                    Text{..} -> (r{someLines = l <| someLines} : rs)
-                    _ -> errorExpected Text{}
+        if l `startsWith` hsCommentClose
+          then case r of
+            Text{someLines}
+              | null (stripEmpties (toList someLines)) ->
+                  error $
+                    ("No text in a 'Text' token ending at line " <> show lineNumber <> ".\n\n")
+                      <> "Please, write some text between '{-\\n' and '\\n-}'."
+              | otherwise -> toTokens def ls res
+            _ -> errorExpected Text{}
+          else -- copy lines
+          toTokens (def{inText}) ls $
+            case r of
+              Text{..} -> r{someLines = l <| someLines} : rs
+              _ -> errorExpected Text{}
     | inDisabled =
-        if
-            | isHsComment l && stripHsComment l `startsWith` _enable ->
-                -- enable
-                toTokens def ls res
-            | otherwise ->
-                -- copy lines
-                toTokens def{inDisabled} ls $
-                  case r of
-                    Disabled{..} -> (r{manyLines = l : manyLines} : rs)
-                    _ -> errorExpected Disabled{}
+        if isHsComment l && stripHsComment l `startsWith` _enable
+          then -- enable
+            toTokens def ls res
+          else -- copy lines
+          toTokens def{inDisabled} ls $
+            case r of
+              Disabled{..} -> r{manyLines = l : manyLines} : rs
+              _ -> errorExpected Disabled{}
     | inComment =
-        if
-            | -- finish comment
-              l `startsWith` hsCommentClose ->
-                case r of
-                  Comment{someLines}
-                    | stripEmpties (toList someLines) == [] ->
-                        error $
-                          ("No text in a 'Comment' token ending at line " <> show lineNumber <> ".\n\n")
-                            <> "Please, write some text between '{- ' and '\\n-}'."
-                    | otherwise -> toTokens def ls res
-                  _ -> errorExpected Comment{}
-            | -- copy lines
-              otherwise ->
-                toTokens def{inComment} ls $
-                  case r of
-                    Comment{..} -> (r{someLines = l <| someLines} : rs)
-                    _ -> errorExpected Comment{}
+        if -- finish comment
+        l `startsWith` hsCommentClose
+          then case r of
+            Comment{someLines}
+              | null (stripEmpties (toList someLines)) ->
+                  error $
+                    ("No text in a 'Comment' token ending at line " <> show lineNumber <> ".\n\n")
+                      <> "Please, write some text between '{- ' and '\\n-}'."
+              | otherwise -> toTokens def ls res
+            _ -> errorExpected Comment{}
+          else -- copy lines
+
+          toTokens def{inComment} ls $
+            case r of
+              Comment{..} -> r{someLines = l <| someLines} : rs
+              _ -> errorExpected Comment{}
     -- Doesn't matter if in a snippet
 
     | -- start of text
@@ -1416,17 +1404,17 @@ hsToTokens (toConfigInternal -> conf@Config{..}) xs = tokens
     | -- Comment on a single line.
       isHsComment l =
         let l' = stripHsComment l
-         in if
-                | l' `startsWith` _disable -> toTokens def{inDisabled = True} ls (Disabled [] : res)
-                | otherwise -> toTokens def ls $ parseLineToToken conf Hs r l' lineNumber <> rs
+         in if l' `startsWith` _disable
+              then toTokens def{inDisabled = True} ls (Disabled [] : res)
+              else toTokens def ls $ parseLineToToken conf Hs r l' lineNumber <> rs
     | -- start of a comment on multiple lines
       l `startsWith` hsCommentOpenSpace =
         let l' = dropLen hsCommentOpenSpace l
-         in if
-                | T.null l' -> errorEmptyCommentAt lineNumber
-                | otherwise ->
-                    toTokens def{inComment = True} ls $
-                      Comment (l' :| []) : res
+         in if T.null l'
+              then errorEmptyCommentAt lineNumber
+              else
+                toTokens def{inComment = True} ls $
+                  Comment (l' :| []) : res
     -- Again matters if in a snippet
     | inHaskellCode =
         toTokens def{inHaskellCode} ls $

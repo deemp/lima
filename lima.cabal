@@ -74,6 +74,7 @@ library
     , data-default
     , microlens
     , microlens-th
+    , string-interpolate
     , text
   default-language: Haskell2010
 
@@ -114,6 +115,7 @@ executable readme
       base ==4.*
     , lima
     , microlens
+    , string-interpolate
     , text
   default-language: Haskell2010
 
@@ -209,6 +211,7 @@ test-suite doctests
     , doctest-parallel
     , lima
     , microlens
+    , string-interpolate
     , text
   default-language: Haskell2010
 
@@ -252,6 +255,7 @@ test-suite readme-hs-to-md
       base ==4.*
     , lima
     , microlens
+    , string-interpolate
     , text
   default-language: Haskell2010
 
@@ -295,5 +299,6 @@ test-suite readme-md-to-hs
       base ==4.*
     , lima
     , microlens
+    , string-interpolate
     , text
   default-language: Haskell2010
