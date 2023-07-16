@@ -77,12 +77,10 @@
                     ++ [
                       {
                         name = "Build lima";
-                        run = run.nix {
-                          dir = ".";
-                          doRun = false;
-                          doBuild = true;
-                          scripts = [ "" "sdist" ];
-                        };
+                        run = ''
+                          ${run.nixScript { name = ""; doRun = false; }}
+                          ${run.nixScript { name = "sdist"; doRun = false; installPriority = 1; }}
+                        '';
                       }
                     ];
                   }) // {

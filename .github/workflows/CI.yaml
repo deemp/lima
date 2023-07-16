@@ -49,12 +49,9 @@ jobs:
             -m "action: Convert README.hs to README.md" \
                                  && git push || echo "push failed!"
       - name: Build lima
-        run: |-
-          nix build .#
+        run: |
           nix profile install .#
-
-          nix build .#sdist
-          nix profile install .#sdist
+          nix profile install .#sdist --priority 1
     strategy:
       matrix:
         os:
