@@ -52,6 +52,11 @@
                     dir = nix-dev;
                     doCacheNix = true;
                     doPushToCachix = false;
+                    cacheNixArgs = {
+                      linuxMaxStoreSize = 100000000;
+                      macosMaxStoreSize = 100000000;
+                      keyJob = "ci";
+                    };
                     updateLocksArgs = { doCommit = false; doGitPull = false; };
                     steps = dir: stepsIf ("${names.matrix.os} == '${os.ubuntu-22}'") [
                       {
@@ -62,7 +67,7 @@
                         };
                       }
                       {
-                        name = "Commit changes";
+                        name = "Commit & Push changes";
                         run = run.nix {
                           doCommit = true;
                           commitMessages = [ "Format" "Update flake locks" "Convert README.hs to README.md" ];
