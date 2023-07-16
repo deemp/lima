@@ -25,13 +25,8 @@
 
             override = {
               overrides = self: super: {
-                ${packageName} = pkgs.haskell.lib.overrideCabal (super.callCabal2nix packageName ./. { }) (
-                  x: {
-                    testHaskellDepends = [
-                      super.doctest-parallel_0_3_0_1
-                    ] ++ (x.testHaskellDepends or [ ]);
-                  }
-                );
+                doctest-parallel = super.doctest-parallel_0_3_0_1;
+                ${packageName} = super.callCabal2nix packageName ./. { };
               };
             };
 
