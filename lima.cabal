@@ -34,8 +34,8 @@ source-repository head
 
 library
   exposed-modules:
-      Converter
-      Converter.Internal
+      Lima.Converter
+      Lima.Converter.Internal
   other-modules:
       Paths_lima
   hs-source-dirs:

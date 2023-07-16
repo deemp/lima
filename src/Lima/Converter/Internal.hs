@@ -1,4 +1,4 @@
-module Converter.Internal where
+module Lima.Converter.Internal where
 
 import Data.Data (Data (toConstr), showConstr)
 import Data.List (dropWhileEnd)

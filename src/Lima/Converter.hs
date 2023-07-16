@@ -90,7 +90,7 @@
 -- Moreover, this form does not require writing @Markdown@ tags like @\'```haskell\'@.
 -- 
 -- Such tags will automatically be printed when converting @Literate Haskell@ to @Markdown@.
-module Converter (
+module Lima.Converter (
   -- * Config
   Mode,
   User,
@@ -160,7 +160,6 @@ module Converter (
   exampleTexTokens,
 ) where
 
-import Converter.Internal (Pretty (..), PrettyPrint (..), constructorName, countSpaces, dropEmpties, dropLen, dropLhsComment, dropTexComment, errorEmptyCommentAt, hsCommentClose, hsCommentCloseSpace, hsCommentOpen, hsCommentOpenSpace, indentN, isHsComment, isMdComment, lhsCommentSpace, lhsEscapeHash, lhsHsCodeSpace, lhsUnescapeHash, mdCommentClose, mdCommentCloseSpace, mdCommentOpenSpace, prependLhsComment, prependTexComment, startsWith, stripEmpties, stripHsComment, stripMdComment, stripSpaces, texCommentSpace)
 import Data.Char (isAlpha)
 import Data.Data (Data)
 import Data.Default (Default (def))
@@ -170,6 +169,7 @@ import Data.Text qualified as T
 import GHC.Generics (Generic)
 import Lens.Micro (non, to, (&), (?~), (^.))
 import Lens.Micro.TH (makeLenses)
+import Lima.Converter.Internal
 import Text.Read (readMaybe)
 import Text.Show qualified as T
 

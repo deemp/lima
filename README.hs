@@ -79,7 +79,7 @@ Convert files between:
 
 {- LIMA_INDENT 4 -}
 
-import Converter (Format (..), convertTo, def)
+import Lima.Converter (Format (..), convertTo, def)
 import Data.Text.IO qualified as T
 
 main :: IO ()
