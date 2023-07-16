@@ -46,7 +46,7 @@
               packages2 = {
                 codium = mkCodium { extensions = extensionsCommon // { inherit (extensions) haskell; }; };
                 writeSettings = writeSettingsJSON (settingsCommonNix // { inherit (settingsNix) haskell; });
-                inherit (mkFlakesTools [ "." nix-dev ]) updateLocks pushToCachix format;
+                inherit (mkFlakesTools { dirs = [ "." nix-dev ]; root = ../.; }) updateLocks pushToCachix format;
                 writeWorkflows = writeWorkflow "CI" (
                   (nixCI {
                     dir = nix-dev;
