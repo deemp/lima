@@ -1,6 +1,6 @@
 # lima
 
-Sync your `README.md` with your `Haskell` codebase.
+Sync your `README` with your `Haskell` codebase.
 
 ## Supported formats
 
@@ -56,9 +56,9 @@ Convert files between:
 
 - A document is a text in a supported format.
 - I introduced tags into supported formats.
-  - E.g., in `.hs` documents, tags are multiline comments written on a single line like `{- LIMA_ENABLE -}`.
+  - E.g., in `.hs` documents, tags are multiline comments written on a single line like '`{- LIMA_ENABLE -}`'.
 - Tag names are configurable.
-  - A user may set `on` instead of `LIMA_ENABLE`.
+  - A user may set '`on`' instead of '`LIMA_ENABLE`'.
 - A document can be parsed into a list of tokens.
   - Tags affect how a document is parsed.
 - The tokens can be printed back to that document.
@@ -78,7 +78,7 @@ Convert files between:
     <!-- LIMA_INDENT 4 -->
 
     ```haskell
-    import Converter (Format (..), convertTo, def)
+    import Lima.Converter (Format (..), convertTo, def)
     import Data.Text.IO qualified as T
     
     main :: IO ()
@@ -94,9 +94,9 @@ This package has two such test suites:
 - [readme-hs-to-md](test/HsToMd/Main.hs) converts `README.hs` to `README.md`.
 - [readme-md-to-hs](test/MdToHs/Main.hs) converts `README.md` to `README.hs`.
 
-## Possible workflow
+## Suggested workflow
 
-Here's a possible workflow for `Haskell` and `Markdown`:
+Here's a possible suggested for `Haskell` and `Markdown`:
 
 1. Edit the code in a `README.hs` using [Haskell Language Server](https://github.com/haskell/haskell-language-server).
 1. Convert `README.hs` to a `README.md`. Comments from `README.hs` become text in `README.md`.
