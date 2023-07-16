@@ -47,7 +47,7 @@
 
             packages = {
               default = package;
-              sdist = toolsGHC_.haskellPackages.buildFromCabalSdist package;
+              sdist = (toolsGHC_.haskellPackages.buildFromCabalSdist package).overrideAttrs (_: { pname = "lima-sdist"; });
             };
           in
           {
