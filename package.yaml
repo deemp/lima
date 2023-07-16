@@ -84,13 +84,6 @@ library:
     - data-default
     - microlens-th
 
-executables:
-  readme:
-    main: README.hs
-    dependencies:
-      - lima
-      - text
-
 tests:
   conversions:
     main: Main.hs
@@ -123,3 +116,9 @@ tests:
     dependencies:
       - lima
       - text
+  readme:
+    main: README.hs
+    dependencies:
+      - lima
+      - text
+

@@ -40,7 +40,7 @@
             let
               packages1 = mkShellApps {
                 writeREADME = {
-                  text = "${getExe cabal} test readme-hs-to-md";
+                  text = "${getExe cabal} run readme";
                 };
               };
               packages2 = {

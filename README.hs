@@ -72,9 +72,7 @@ Convert files between:
 
 ## Suggested setup
 
-### Test suite
-
-1. Create a test suite.
+1. Create a test suite. `README.hs` may be its main file.
 1. Add `lima` and `text` to its dependencies.
 1. Create a test module. It may have the following content.
 -}
@@ -90,8 +88,9 @@ main = T.readFile "README.hs" >>= T.writeFile "README.md" . (Hs `convertTo` Md) 
 {- LIMA_DEDENT -}
 
 {-
-This package has two such test suites:
+This package has three such test suites:
 
+- [readme](README.hs) converts `README.hs` to `README.md`. `README.hs` is its main file.
 - [readme-hs-to-md](test/HsToMd/Main.hs) converts `README.hs` to `README.md`.
 - [readme-md-to-hs](test/MdToHs/Main.hs) converts `README.md` to `README.hs`.
 
@@ -102,7 +101,7 @@ Here's a suggested workflow for `Haskell` and `Markdown`:
 1. Edit the code in a `README.hs` using [Haskell Language Server](https://github.com/haskell/haskell-language-server).
 1. Convert `README.hs` to a `README.md`. Comments from `README.hs` become text in `README.md`.
 1. Edit the text in `README.md` using [markdownlint](https://github.com/DavidAnson/markdownlint).
-1. Convert `README.md` back to the `README.hs` to keep files in sync. Text in `README.md` becomes comments in `README.hs`.
+1. Convert `README.md` back to the `README.hs` to keep files in sync. Text from `README.md` becomes comments in `README.hs`.
 1. Repeat.
 
 ## Contribute

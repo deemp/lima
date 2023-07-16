@@ -78,47 +78,6 @@ library
     , text
   default-language: Haskell2010
 
-executable readme
-  main-is: README.hs
-  other-modules:
-      Paths_lima
-  default-extensions:
-      BlockArguments
-      ConstraintKinds
-      DataKinds
-      DeriveAnyClass
-      DeriveDataTypeable
-      DeriveGeneric
-      DuplicateRecordFields
-      ExistentialQuantification
-      FlexibleInstances
-      GADTs
-      ImplicitParams
-      ImportQualifiedPost
-      InstanceSigs
-      LambdaCase
-      MultiWayIf
-      NamedFieldPuns
-      OverloadedStrings
-      QuasiQuotes
-      RankNTypes
-      RecordWildCards
-      ScopedTypeVariables
-      StandaloneDeriving
-      TemplateHaskell
-      TupleSections
-      TypeApplications
-      TypeFamilies
-      ViewPatterns
-  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
-  build-depends:
-      base ==4.*
-    , lima
-    , microlens
-    , string-interpolate
-    , text
-  default-language: Haskell2010
-
 test-suite conversions
   type: exitcode-stdio-1.0
   main-is: Main.hs
@@ -209,6 +168,48 @@ test-suite doctests
   build-depends:
       base ==4.*
     , doctest-parallel
+    , lima
+    , microlens
+    , string-interpolate
+    , text
+  default-language: Haskell2010
+
+test-suite readme
+  type: exitcode-stdio-1.0
+  main-is: README.hs
+  other-modules:
+      Paths_lima
+  default-extensions:
+      BlockArguments
+      ConstraintKinds
+      DataKinds
+      DeriveAnyClass
+      DeriveDataTypeable
+      DeriveGeneric
+      DuplicateRecordFields
+      ExistentialQuantification
+      FlexibleInstances
+      GADTs
+      ImplicitParams
+      ImportQualifiedPost
+      InstanceSigs
+      LambdaCase
+      MultiWayIf
+      NamedFieldPuns
+      OverloadedStrings
+      QuasiQuotes
+      RankNTypes
+      RecordWildCards
+      ScopedTypeVariables
+      StandaloneDeriving
+      TemplateHaskell
+      TupleSections
+      TypeApplications
+      TypeFamilies
+      ViewPatterns
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
+  build-depends:
+      base ==4.*
     , lima
     , microlens
     , string-interpolate
