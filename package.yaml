@@ -90,6 +90,7 @@ executables:
     dependencies:
       - lima
       - text
+
 tests:
   conversions:
     main: Main.hs
