@@ -29,9 +29,14 @@
             inherit (inputs.haskell-tools.lib.${system}) toolsGHC;
             inherit (inputs.workflows.lib.${system}) writeWorkflow steps nixCI run stepsIf names os;
             inherit (inputs.drv-tools.lib.${system}) mkShellApps getExe;
+            inherit (inputs.root.params.${system}) override ghcVersion lima;
 
             # Next, set the desired GHC version
-            inherit (inputs.root.outputs.toolsGHC_.${system}) cabal hls hpack fourmolu ghcid;
+            inherit (toolsGHC {
+              inherit override;
+              version = ghcVersion;
+              packages = ps: [ ps.${lima} ];
+            }) cabal hls hpack fourmolu ghcid haskellPackages;
 
             tools = [ hls cabal hpack ghcid fourmolu ];
 
@@ -39,11 +44,7 @@
 
             packages =
               let
-                packages1 = mkShellApps {
-                  writeREADME = {
-                    text = "${getExe cabal} run readme";
-                  };
-                };
+                packages1 = mkShellApps { writeDocs.text = "${getExe cabal} test ${lima}:test:readme"; };
                 packages2 = {
                   codium = mkCodium { extensions = extensionsCommon // { inherit (extensions) haskell; }; };
                   writeSettings = writeSettingsJSON (settingsCommonNix // { inherit (settingsNix) haskell; });
@@ -70,7 +71,7 @@
                               name = convertREADME;
                               run = run.nixScript {
                                 inherit dir;
-                                name = packages1.writeREADME.pname;
+                                name = packages1.writeDocs.pname;
                               };
                             }
                             {

@@ -26,7 +26,6 @@ author: Fabian Schneider
 maintainer: Danila Danko
 category: Productivity
 extra-source-files:
-  - CHANGELOG.md
   - README.md
   - testdata/**/*
 

@@ -21,32 +21,30 @@
             pkgs = inputs.nixpkgs.legacyPackages.${system};
             inherit (inputs.haskell-tools.lib.${system}) toolsGHC;
 
-            packageName = "lima";
+            lima = "lima";
 
             override = {
               overrides = self: super: {
                 doctest-parallel = super.doctest-parallel_0_3_0_1;
-                ${packageName} = super.callCabal2nix packageName ./. { };
+                ${lima} = super.callCabal2nix lima ./lima { };
               };
             };
 
             ghcVersion = "928";
 
-            toolsGHC_ = (toolsGHC {
+            inherit (toolsGHC {
               version = ghcVersion;
               inherit override;
-              packages = (ps: [ ps.${packageName} ]);
-            });
-
-            package = toolsGHC_.haskellPackages.${packageName};
+            }) haskellPackages;
 
             packages = {
-              default = package;
-              sdist = (toolsGHC_.haskellPackages.buildFromCabalSdist package).overrideAttrs (_: { pname = "lima-sdist"; });
+              default = haskellPackages.${lima};
+              sdist = (haskellPackages.buildFromCabalSdist haskellPackages.${lima}).overrideAttrs (_: { pname = "lima-sdist"; });
             };
           in
           {
-            inherit packages toolsGHC_;
+            inherit packages;
+            params = { inherit override ghcVersion lima; };
           })
         // {
           inherit (inputs) formatter;

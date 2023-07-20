@@ -45,8 +45,8 @@ jobs:
       - if: matrix.os == 'ubuntu-22.04'
         name: Convert README.hs to README.md
         run: |-
-          nix profile install nix-dev/#writeREADME
-          nix run nix-dev/#writeREADME
+          nix profile install nix-dev/#writeDocs
+          nix run nix-dev/#writeDocs
       - if: matrix.os == 'ubuntu-22.04'
         name: Commit & Push changes
         run: |-
