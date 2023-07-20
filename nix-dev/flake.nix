@@ -78,7 +78,10 @@
                               name = "Commit & Push changes";
                               run = run.nix {
                                 doCommit = true;
-                                commitArgs.commitMessages = [ ((steps.format { }).name) ((steps.updateLocks { }).name) convertREADME ];
+                                commitArgs = {
+                                  commitMessages = [ ((steps.format { }).name) ((steps.updateLocks { }).name) convertREADME ];
+                                  doIgnoreCommitFailed = true;
+                                };
                               };
                             }
                           ]

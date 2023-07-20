@@ -54,7 +54,8 @@ jobs:
           git commit \
             -m "action: Format Nix files" \
             -m "action: Update flake locks" \
-            -m "action: Convert README.hs to README.md"
+            -m "action: Convert README.hs to README.md" \
+            || echo "commit failed!"
           git push
       - name: Build lima
         run: |
