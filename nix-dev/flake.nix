@@ -53,7 +53,7 @@
                     nixCI {
                       dir = nix-dev;
                       doCacheNix = true;
-                      doPushToCachix = false;
+                      doPushToCachix = true;
                       doFormat = true;
                       cacheNixArgs = {
                         linuxGCEnabled = true;
