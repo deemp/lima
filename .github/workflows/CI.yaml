@@ -20,9 +20,9 @@ jobs:
         with:
           key: nix-${{ matrix.os }}-ci-${{ hashfiles('**/flake.nix', '**/flake.lock') }}
           linux-gc-enabled: true
-          linux-max-store-size: 900000000
+          linux-max-store-size: 5100000000
           macos-gc-enabled: true
-          macos-max-store-size: 900000000
+          macos-max-store-size: 5100000000
           restore-keys: |
             nix-${{ matrix.os }}-ci-
       - name: Remove old cache profiles

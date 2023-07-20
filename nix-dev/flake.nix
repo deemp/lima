@@ -57,9 +57,9 @@
                       doFormat = true;
                       cacheNixArgs = {
                         linuxGCEnabled = true;
-                        linuxMaxStoreSize = 900000000;
+                        linuxMaxStoreSize = 5100000000;
                         macosGCEnabled = true;
-                        macosMaxStoreSize = 900000000;
+                        macosMaxStoreSize = 5100000000;
                         keyJob = "ci";
                       };
                       updateLocksArgs = { doCommit = false; doGitPull = false; };
