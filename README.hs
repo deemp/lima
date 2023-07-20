@@ -30,6 +30,12 @@ Convert files between:
 
 - [design-tools](https://github.com/isovector/design-tools) - a Pandoc filter for building a book from Markdown.
 
+## Scope
+
+`lima` focuses on converting documents between formats and allows to concatenate documents.
+
+Other scenarios, e.g., inlining a document into a document, may require specialized tools.
+
 ## Demo
 
 ### Markdown
@@ -46,22 +52,13 @@ Convert files between:
 
 ## Ideas
 
-### TL;DR
-
-- `Haskell` files can be type checked and nicely formatted.
-- Convert a `Haskell` file with tags (== special comments) to `Markdown` or `TeX`.
-- The file is parsed line by line, tags affect parsing of the following lines.
-- Usually, it's possible to convert the file back to the source format.
-
-### Full
-
 - A document is a text in a supported format.
 - I introduced tags into supported formats.
   - E.g., in `.hs` documents, tags are multiline comments written on a single line like '`{- LIMA_ENABLE -}`'.
 - Tag names are configurable.
   - A user may set '`on`' instead of '`LIMA_ENABLE`'.
 - A document can be parsed into a list of tokens.
-  - Tags affect how a document is parsed.
+- Tags affect document parsing.
 - The tokens can be printed back to that document.
 - Formatting a document is printing a parsed document back to itself.
   - Formatting is idempotent. In other words, formatting the document again won't change its content.

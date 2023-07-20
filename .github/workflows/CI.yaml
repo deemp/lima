@@ -1,6 +1,8 @@
 jobs:
   nixCI:
     name: Nix CI
+    permissions:
+      contents: write
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout this repo
@@ -14,7 +16,7 @@ jobs:
             trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs= hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ= deemp.cachix.org-1:9shDxyR2ANqEPQEEYDL/xIOnoPwxHot21L5fiZnFL18=
             keep-outputs = true
       - name: Restore and cache Nix store
-        uses: deemp/cache-nix-too@v1
+        uses: nix-community/cache-nix-action@v1
         with:
           key: nix-${{ matrix.os }}-ci-${{ hashfiles('**/flake.nix', '**/flake.lock') }}
           linux-gc-enabled: true
@@ -22,7 +24,6 @@ jobs:
           macos-gc-enabled: true
           macos-max-store-size: 900000000
           restore-keys: |
-            nix-${{ matrix.os }}-ci-${{ hashfiles('**/flake.nix', '**/flake.lock') }}
             nix-${{ matrix.os }}-ci-
       - name: Remove old cache profiles
         run: rm -rf /nix/var/nix/profiles/cache
@@ -31,6 +32,11 @@ jobs:
         run: |
           git config --global user.name github-actions
           git config --global user.email github-actions@github.com
+      - if: matrix.os == 'ubuntu-22.04'
+        name: Format Nix files
+        run: |-
+          nix profile install nix-dev/#format
+          nix run nix-dev/#format
       - if: matrix.os == 'ubuntu-22.04'
         name: Update flake locks
         run: |-
@@ -44,10 +50,12 @@ jobs:
       - if: matrix.os == 'ubuntu-22.04'
         name: Commit & Push changes
         run: |-
-          git commit -a -m "action: Format" \
+          git add .
+          git commit \
+            -m "action: Format Nix files" \
             -m "action: Update flake locks" \
-            -m "action: Convert README.hs to README.md" \
-                                 && git push || echo "push failed!"
+            -m "action: Convert README.hs to README.md"
+          git push
       - name: Build lima
         run: |
           nix profile install .#
@@ -59,6 +67,20 @@ jobs:
           - macos-12
           - ubuntu-20.04
           - ubuntu-22.04
+  purgeCache:
+    name: Purge cache
+    needs: nixCI
+    permissions:
+      actions: write
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Purge cache
+        uses: deemp/purge-cache@v1
+        with:
+          accessed: true
+          created: true
+          debug: true
+          max-age: 172800
 name: Nix CI
 "on":
   pull_request: {}
@@ -66,5 +88,3 @@ name: Nix CI
   schedule:
     - cron: 0 0 * * *
   workflow_dispatch: {}
-permissions:
-  contents: write
