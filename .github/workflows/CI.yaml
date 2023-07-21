@@ -44,30 +44,24 @@ jobs:
           nix profile install nix-dev/#updateLocks
           nix run nix-dev/#updateLocks
       - if: matrix.os == 'ubuntu-22.04'
-        name: Commit & Push
-        run: |-
-          git add .
-          git commit \
-            -m "action" \
-            -m "Format Nix files" \
-            -m "Update flake locks" \
-            || echo "commit failed!"
-          git push
-      - if: matrix.os == 'ubuntu-22.04'
-        name: Convert README.hs to README.md
+        name: Write docs
         run: |-
           nix profile install nix-dev/#writeDocs
           nix run nix-dev/#writeDocs
       - if: matrix.os == 'ubuntu-22.04'
         name: Commit & Push changes
         run: |-
+          git pull --rebase --autostash
+
           git add .
+
           git commit \
             -m "action" \
             -m "Format Nix files" \
             -m "Update flake locks" \
-            -m "Convert README.hs to README.md" \
+            -m "Write docs" \
             || echo "commit failed!"
+
           git push
       - name: Build lima
         run: |

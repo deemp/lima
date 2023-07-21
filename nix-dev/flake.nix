@@ -54,9 +54,7 @@
                       nixCI {
                         jobArgs = {
                           dir = nix-dev;
-                          doCacheNix = true;
                           doPushToCachix = true;
-                          doFormat = true;
                           cacheNixArgs = {
                             linuxGCEnabled = true;
                             linuxMaxStoreSize = 5100000000;
@@ -64,14 +62,15 @@
                             macosMaxStoreSize = 5100000000;
                           };
                           doUpdateLocks = true;
+                          doCommit = false;
                           doSaveFlakes = false;
                           steps = dir:
                             stepsIf ("${names.matrix.os} == '${os.ubuntu-22}'")
                               (
-                                let convertREADME = "Convert README.hs to README.md"; in
+                                let writeDocsName = "Write docs"; in
                                 [
                                   {
-                                    name = convertREADME;
+                                    name = writeDocsName;
                                     run = run.nixScript {
                                       inherit dir;
                                       name = packages1.writeDocs.pname;
@@ -81,7 +80,7 @@
                                     name = "Commit & Push changes";
                                     run = run.nix {
                                       doCommit = true;
-                                      commitArgs.messages = [ (steps.format { }).name (steps.updateLocks { }).name convertREADME ];
+                                      commitArgs.messages = [ (steps.format { }).name (steps.updateLocks { }).name writeDocsName ];
                                     };
                                   }
                                 ]
