@@ -88,10 +88,7 @@
                             ++ [
                               {
                                 name = "Build lima";
-                                run = ''
-                                  ${run.nixScript { name = ""; doRun = false; }}
-                                  ${run.nixScript { name = "sdist"; doRun = false; installPriority = 1; }}
-                                '';
+                                run = run.nix_ { doInstall = true; scripts = [ "" "sdist" ]; };
                               }
                             ];
                         };

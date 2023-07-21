@@ -64,9 +64,10 @@ jobs:
 
           git push
       - name: Build lima
-        run: |
-          nix profile install .#
-          nix profile install .#sdist
+        run: |-
+          nix profile install .# --priority 0
+
+          nix profile install .#sdist --priority 1
       - env:
           CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
           CACHIX_CACHE: ${{ secrets.CACHIX_CACHE }}
