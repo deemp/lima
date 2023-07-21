@@ -42,9 +42,9 @@
               inherit override;
               version = ghcVersion;
               packages = ps: [ ps.${lima} ];
-            }) cabal hls hpack fourmolu ghcid haskellPackages;
+            }) cabal ghc hls hpack fourmolu ghcid haskellPackages;
 
-            tools = [ hls cabal hpack ghcid fourmolu ];
+            tools = [ ghc cabal hls hpack ghcid fourmolu ];
 
             packages =
               let
