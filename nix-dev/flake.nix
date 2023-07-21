@@ -49,54 +49,55 @@
                   codium = mkCodium { extensions = extensionsCommon // { inherit (extensions) haskell; }; };
                   writeSettings = writeSettingsJSON (settingsCommonNix // { inherit (settingsNix) haskell; });
                   inherit (mkFlakesTools { dirs = [ "." nix-dev ]; root = ../.; }) updateLocks pushToCachix format;
-                  writeWorkflows = writeWorkflow "CI" (
-                    nixCI {
-                      dir = nix-dev;
-                      doCacheNix = true;
-                      doPushToCachix = true;
-                      doFormat = true;
-                      cacheNixArgs = {
-                        linuxGCEnabled = true;
-                        linuxMaxStoreSize = 5100000000;
-                        macosGCEnabled = true;
-                        macosMaxStoreSize = 5100000000;
-                        keyJob = "ci";
-                      };
-                      updateLocksArgs = { doCommit = false; doGitPull = false; };
-                      steps = dir: stepsIf ("${names.matrix.os} == '${os.ubuntu-22}'")
-                        (
-                          let convertREADME = "Convert README.hs to README.md"; in
-                          [
-                            {
-                              name = convertREADME;
-                              run = run.nixScript {
-                                inherit dir;
-                                name = packages1.writeDocs.pname;
-                              };
-                            }
-                            {
-                              name = "Commit & Push changes";
-                              run = run.nix {
-                                doCommit = true;
-                                commitArgs = {
-                                  commitMessages = [ ((steps.format { }).name) ((steps.updateLocks { }).name) convertREADME ];
-                                  doIgnoreCommitFailed = true;
-                                };
-                              };
-                            }
-                          ]
-                        )
-                      ++ [
-                        {
-                          name = "Build lima";
-                          run = ''
-                            ${run.nixScript { name = ""; doRun = false; }}
-                            ${run.nixScript { name = "sdist"; doRun = false; installPriority = 1; }}
-                          '';
-                        }
-                      ];
-                    }
-                  );
+                  writeWorkflows = writeWorkflow "CI"
+                    (
+                      nixCI {
+                        jobArgs = {
+                          dir = nix-dev;
+                          doCacheNix = true;
+                          doPushToCachix = true;
+                          doFormat = true;
+                          cacheNixArgs = {
+                            linuxGCEnabled = true;
+                            linuxMaxStoreSize = 5100000000;
+                            macosGCEnabled = true;
+                            macosMaxStoreSize = 5100000000;
+                          };
+                          doUpdateLocks = true;
+                          doSaveFlakes = false;
+                          steps = dir:
+                            stepsIf ("${names.matrix.os} == '${os.ubuntu-22}'")
+                              (
+                                let convertREADME = "Convert README.hs to README.md"; in
+                                [
+                                  {
+                                    name = convertREADME;
+                                    run = run.nixScript {
+                                      inherit dir;
+                                      name = packages1.writeDocs.pname;
+                                    };
+                                  }
+                                  {
+                                    name = "Commit & Push changes";
+                                    run = run.nix {
+                                      doCommit = true;
+                                      commitArgs.messages = [ (steps.format { }).name (steps.updateLocks { }).name convertREADME ];
+                                    };
+                                  }
+                                ]
+                              )
+                            ++ [
+                              {
+                                name = "Build lima";
+                                run = ''
+                                  ${run.nixScript { name = ""; doRun = false; }}
+                                  ${run.nixScript { name = "sdist"; doRun = false; installPriority = 1; }}
+                                '';
+                              }
+                            ];
+                        };
+                      }
+                    );
                 };
               in
               packages1 // packages2;
