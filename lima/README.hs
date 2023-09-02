@@ -30,6 +30,8 @@ Convert files between:
 
 - [design-tools](https://github.com/isovector/design-tools) - a Pandoc filter for building a book from Markdown.
 
+- [literatex](https://hackage.haskell.org/package/literatex) - transform literate source code to Markdown
+
 ## Scope
 
 `lima` focuses on converting documents between formats and allows to concatenate documents.
