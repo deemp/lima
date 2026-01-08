@@ -172,7 +172,6 @@ import Lens.Micro (non, to, (&), (?~), (^.))
 import Lens.Micro.TH (makeLenses)
 import Lima.Converter.Internal
 import Text.Read (readMaybe)
-import Text.Show qualified as T
 
 -- | A kind of data markers.
 data Mode'
@@ -811,7 +810,7 @@ texFromTokens' (toConfigInternal -> Config{_disable, _enable, _indent, _dedent, 
   fromTokens _ _ = errorNotEnoughTokens TeX
   translate curIndent (prev : cur : _) rs =
     case cur of
-      Indent{n} -> (n,) $ [texCommentSpace <> _indent <> " " <> T.pack (show n)] : [] : rs
+      Indent{n} -> (n,) $ [texCommentSpace <> _indent <> " " <> T.show n] : [] : rs
       Dedent -> (0,) $ [texCommentSpace <> _dedent] : [] : rs
       Disabled{manyLines} -> (0,) $ [[texCommentSpace <> _enable], [], prependTexComment <$> manyLines, [], [texCommentSpace <> _disable], []] <> rs
       HaskellCode{manyLines} ->
@@ -1340,7 +1339,7 @@ hsFromTokens' (toConfigInternal -> Config{_disable, _enable, _indent, _dedent}) 
   toHs (b : bs) res =
     toHs bs $
       case b of
-        Indent{n} -> [hsCommentOpenSpace <> _indent <> " " <> T.pack (T.show n) <> hsCommentCloseSpace] : res
+        Indent{n} -> [hsCommentOpenSpace <> _indent <> " " <> T.pack (show n) <> hsCommentCloseSpace] : res
         Dedent -> [hsCommentOpenSpace <> _dedent <> hsCommentCloseSpace] : res
         Disabled{manyLines} ->
           [[hsCommentOpenSpace <> _enable <> hsCommentCloseSpace]]
