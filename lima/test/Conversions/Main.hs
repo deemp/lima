@@ -112,7 +112,7 @@ genLines = Gen.list (Range.constant 1 5) genLine
 genIndent :: Gen Token
 genIndent = do
   n <- Gen.int (Range.constant 0 10)
-  pure Indent{..}
+  pure Indent{n}
 
 genDedent :: Gen Token
 genDedent = pure Dedent
@@ -125,12 +125,12 @@ genComment = do
 genText :: Gen Token
 genText = do
   someLines <- genNonEmpty
-  pure Text{..}
+  pure Text{someLines}
 
 genCommentSingleLine :: Gen Token
 genCommentSingleLine = do
   someLine <- genLine
-  pure CommentSingleLine{..}
+  pure CommentSingleLine{someLine}
 
 genNonDisabled :: (?genCode :: GenCode) => Gen Tokens
 genNonDisabled =
