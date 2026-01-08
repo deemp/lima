@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.35.2.
+-- This file has been generated from package.yaml by hpack version 0.38.3.
 --
 -- see: https://github.com/sol/hpack
 
@@ -59,7 +59,6 @@ library
       OverloadedStrings
       QuasiQuotes
       RankNTypes
-      RecordWildCards
       ScopedTypeVariables
       StandaloneDeriving
       TemplateHaskell
@@ -104,7 +103,6 @@ test-suite conversions
       OverloadedStrings
       QuasiQuotes
       RankNTypes
-      RecordWildCards
       ScopedTypeVariables
       StandaloneDeriving
       TemplateHaskell
@@ -155,7 +153,6 @@ test-suite doctests
       OverloadedStrings
       QuasiQuotes
       RankNTypes
-      RecordWildCards
       ScopedTypeVariables
       StandaloneDeriving
       TemplateHaskell
@@ -198,7 +195,6 @@ test-suite readme
       OverloadedStrings
       QuasiQuotes
       RankNTypes
-      RecordWildCards
       ScopedTypeVariables
       StandaloneDeriving
       TemplateHaskell
@@ -242,7 +238,6 @@ test-suite readme-hs-to-md
       OverloadedStrings
       QuasiQuotes
       RankNTypes
-      RecordWildCards
       ScopedTypeVariables
       StandaloneDeriving
       TemplateHaskell
@@ -286,7 +281,6 @@ test-suite readme-md-to-hs
       OverloadedStrings
       QuasiQuotes
       RankNTypes
-      RecordWildCards
       ScopedTypeVariables
       StandaloneDeriving
       TemplateHaskell
