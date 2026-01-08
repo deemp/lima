@@ -270,7 +270,7 @@ instance PrettyPrint (Config User) where
               | [a, b] == "{_" -> "{\n  "
               | otherwise -> [a]
         )
-        (zip (show config) (tail $ show config))
+        (zip (show config) (drop 1 $ show config))
         <> "\n}"
 
 instance Default (Config Internal) where
@@ -417,7 +417,7 @@ instance PrettyPrint Tokens where
               | a == '[' && isAlpha b -> "[\n  "
               | otherwise -> [a]
         )
-        (zip (show ts) (tail $ show ts))
+        (zip (show ts) (drop 1 $ show ts))
         <> "\n]"
 
 -- | Select a printer function based on a given format.
