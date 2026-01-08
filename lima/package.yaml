@@ -81,6 +81,9 @@ library:
   dependencies:
     - data-default
     - microlens-th
+  when:
+    - condition: false
+      other-modules: Paths_lima
 
 tests:
   conversions:
@@ -119,4 +122,3 @@ tests:
     dependencies:
       - lima
       - text
-

@@ -35,8 +35,6 @@ library
   exposed-modules:
       Lima.Converter
       Lima.Converter.Internal
-  other-modules:
-      Paths_lima
   hs-source-dirs:
       src
   default-extensions:
