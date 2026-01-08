@@ -1,120 +1,120 @@
 {
-  inputs.flakes.url = "github:deemp/flakes";
-  outputs = inputs:
-    let makeFlake = inputs.flakes.makeFlake; in
-    makeFlake {
-      inputs = {
-        inherit (inputs.flakes.all)
-          nixpkgs formatter codium drv-tools devshell
-          flakes-tools workflows haskell-tools;
-      };
-      perSystem = { inputs, system }:
-        let
-          pkgs = inputs.nixpkgs.legacyPackages.${system};
-          inherit (inputs.codium.lib.${system}) extensions extensionsCommon settingsNix settingsCommonNix writeSettingsJSON mkCodium;
-          inherit (inputs.devshell.lib.${system}) mkCommands mkRunCommands mkShell;
-          inherit (inputs.flakes-tools.lib.${system}) mkFlakesTools;
-          inherit (inputs.haskell-tools.lib.${system}) toolsGHC;
-          inherit (inputs.workflows.lib.${system}) writeWorkflow steps nixCI run stepsIf names os;
-          inherit (inputs.drv-tools.lib.${system}) mkShellApps getExe;
+  inputs = {
+    nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
+    devshell = {
+      url = "github:deemp/devshell";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    systems.url = "github:nix-systems/default";
+    flake-parts.url = "github:hercules-ci/flake-parts";
+    haskell-flake.url = "github:srid/haskell-flake";
+    treefmt-nix = {
+      url = "github:numtide/treefmt-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+  };
 
-          lima = "lima";
+  outputs =
+    inputs:
+    inputs.flake-parts.lib.mkFlake { inherit inputs; } {
+      systems = import inputs.systems;
+      imports = [
+        inputs.haskell-flake.flakeModule
+        inputs.treefmt-nix.flakeModule
+        inputs.devshell.flakeModule
+      ];
+      perSystem =
+        {
+          self',
+          system,
+          lib,
+          config,
+          pkgs,
+          ...
+        }:
+        {
+          # Our only Haskell project. You can have multiple projects, but this template
+          # has only one.
+          # See https://github.com/srid/haskell-flake/blob/master/example/flake.nix
+          haskellProjects.default = {
+            # To avoid unnecessary rebuilds, we filter projectRoot:
+            # https://community.flake.parts/haskell-flake/local#rebuild
+            projectRoot = builtins.toString (
+              lib.fileset.toSource {
+                root = ./.;
+                fileset = lib.fileset.unions [
+                  ./lima
+                  ./cabal.project
+                  ./README.md
+                ];
+              }
+            );
 
-          override = {
-            overrides = self: super: {
-              doctest-parallel = super.doctest-parallel_0_3_0_1;
-              ${lima} = super.callCabal2nix lima ./${lima} { };
+            basePackages = pkgs.haskell.packages."ghc910";
+
+            # Development shell configuration
+            devShell = {
+              hlsCheck.enable = false;
+              hoogle = false;
+              tools = hp: {
+                hlint = null;
+              };
+            };
+
+            # What should haskell-flake add to flake outputs?
+            autoWire = [
+              "packages"
+              "apps"
+              "checks"
+            ]; # Wire all but the devShell
+          };
+
+          # Auto formatters. This also adds a flake check to ensure that the
+          # source tree was auto formatted.
+          treefmt.config = {
+            projectRootFile = "flake.nix";
+            programs = {
+              nixfmt.enable = true;
+              hlint.enable = true;
+              shellcheck.enable = true;
+              fourmolu.enable = true;
+              prettier.enable = true;
+            };
+            settings = {
+              formatter = rec {
+                fourmolu.excludes = [
+                  "**/*.cabal"
+                  "**/Setup.hs"
+                ];
+                hlint.excludes = fourmolu.excludes;
+              };
             };
           };
 
-          ghcVersion = "928";
-
-          # Next, set the desired GHC version
-          inherit (toolsGHC {
-            inherit override;
-            version = ghcVersion;
-            packages = ps: [ ps.${lima} ];
-          }) cabal ghc hls hpack fourmolu ghcid haskellPackages;
-
-          tools = [ ghc cabal hls hpack ghcid fourmolu ];
-
-          packages =
-            let
-              packages1 = mkShellApps { writeDocs.text = "${getExe cabal} test ${lima}:test:readme"; };
-              packages2 = {
-                default = haskellPackages.${lima};
-                sdist = (haskellPackages.buildFromCabalSdist haskellPackages.${lima}).overrideAttrs (_: { pname = "lima-sdist"; });
-
-                codium = mkCodium { extensions = extensionsCommon // { inherit (extensions) haskell; }; };
-                writeSettings = writeSettingsJSON (settingsCommonNix // { inherit (settingsNix) haskell; });
-                inherit (mkFlakesTools { dirs = [ "." ]; root = ./.; }) updateLocks pushToCachix format;
-                writeWorkflows = writeWorkflow "CI"
-                  (
-                    nixCI {
-                      jobArgs = {
-                        doPushToCachix = true;
-                        cacheNixArgs = {
-                          linuxGCEnabled = true;
-                          linuxMaxStoreSize = 5100000000;
-                          macosGCEnabled = true;
-                          macosMaxStoreSize = 5100000000;
-                        };
-                        doUpdateLocks = true;
-                        doCommit = false;
-                        doSaveFlakes = false;
-                        steps = dir:
-                          stepsIf ("${names.matrix.os} == '${os.ubuntu-22}'")
-                            (
-                              let writeDocsName = "Write docs"; in
-                              [
-                                {
-                                  name = writeDocsName;
-                                  run = run.nixScript {
-                                    inherit dir;
-                                    name = packages1.writeDocs.pname;
-                                  };
-                                }
-                                {
-                                  name = "Commit & Push changes";
-                                  run = run.nix {
-                                    doCommit = true;
-                                    commitArgs.messages = [ (steps.format { }).name (steps.updateLocks { }).name writeDocsName ];
-                                  };
-                                }
-                              ]
-                            )
-                          ++ [
-                            {
-                              name = "Build lima";
-                              run = run.nix_ { doInstall = true; scripts = [ "" "sdist" ]; };
-                            }
-                          ];
-                      };
-                    }
-                  );
-              };
-            in
-            packages1 // packages2;
-
-          devShells.default = mkShell {
-            packages = tools;
-            bash.extra = "export LC_ALL=C.UTF-8";
-            commands =
-              mkCommands "tools" tools
-              ++ mkRunCommands "ide" { "codium ." = packages.codium; inherit (packages) writeSettings; }
-              ++ [
+          # Default shell.
+          devshells.default = {
+            packagesFrom = [
+              config.haskellProjects.default.outputs.devShell
+              config.treefmt.build.devShell
+            ];
+            bash.extra = ''
+              export LC_ALL=C.UTF-8
+            '';
+            commandGroups = {
+              tools = [
                 {
-                  name = "test";
-                  category = "test";
-                  help = "Build via `cabal`";
-                  command = "cabal v1-test";
+                  expose = true;
+                  packages =
+                    let
+                      hp = config.haskellProjects.default.outputs.finalPackages;
+                    in
+                    {
+                      inherit (hp) hpack cabal-install;
+                    };
                 }
               ];
+            };
           };
-        in
-        {
-          inherit packages devShells;
-          formatter = inputs.formatter.${system};
         };
     };
 
@@ -122,12 +122,10 @@
     extra-substituters = [
       "https://nix-community.cachix.org"
       "https://cache.iog.io"
-      "https://deemp.cachix.org"
     ];
     extra-trusted-public-keys = [
       "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
       "hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ="
-      "deemp.cachix.org-1:9shDxyR2ANqEPQEEYDL/xIOnoPwxHot21L5fiZnFL18="
     ];
   };
 }
