@@ -68,11 +68,11 @@ library
       ViewPatterns
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
   build-depends:
-      base ==4.*
+      PyF
+    , base ==4.*
     , data-default
     , microlens
     , microlens-th
-    , string-interpolate
     , text
   default-language: Haskell2010
 
@@ -112,14 +112,14 @@ test-suite conversions
       ViewPatterns
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
   build-depends:
-      base ==4.*
+      PyF
+    , base ==4.*
     , breakpoint
     , directory
     , hedgehog
     , lima
     , microlens
     , pretty-simple
-    , string-interpolate
     , tasty
     , tasty-hedgehog
     , tasty-hunit
@@ -162,11 +162,11 @@ test-suite doctests
       ViewPatterns
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
   build-depends:
-      base ==4.*
+      PyF
+    , base ==4.*
     , doctest-parallel
     , lima
     , microlens
-    , string-interpolate
     , text
   default-language: Haskell2010
 
@@ -204,10 +204,10 @@ test-suite readme
       ViewPatterns
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
   build-depends:
-      base ==4.*
+      PyF
+    , base ==4.*
     , lima
     , microlens
-    , string-interpolate
     , text
   default-language: Haskell2010
 
@@ -247,10 +247,10 @@ test-suite readme-hs-to-md
       ViewPatterns
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
   build-depends:
-      base ==4.*
+      PyF
+    , base ==4.*
     , lima
     , microlens
-    , string-interpolate
     , text
   default-language: Haskell2010
 
@@ -290,9 +290,9 @@ test-suite readme-md-to-hs
       ViewPatterns
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
   build-depends:
-      base ==4.*
+      PyF
+    , base ==4.*
     , lima
     , microlens
-    , string-interpolate
     , text
   default-language: Haskell2010

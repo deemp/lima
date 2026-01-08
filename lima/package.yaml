@@ -74,7 +74,7 @@ dependencies:
   - base >=4 && < 5
   - microlens
   - text
-  - string-interpolate
+  - PyF
 
 library:
   source-dirs: src
@@ -88,7 +88,7 @@ tests:
     source-dirs: test/Conversions
     dependencies:
       - lima
-      - string-interpolate
+      - PyF
       - tasty-hunit
       - tasty
       - directory

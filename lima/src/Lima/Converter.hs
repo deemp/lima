@@ -165,13 +165,13 @@ import Data.Data (Data)
 import Data.Default (Default (def))
 import Data.List (intersperse)
 import Data.List.NonEmpty as NonEmpty (NonEmpty ((:|)), fromList, init, last, toList, (<|))
-import Data.String.Interpolate (i)
 import Data.Text qualified as T
 import GHC.Generics (Generic)
 import Lens.Micro (non, to, (&), (?~), (^.))
 import Lens.Micro.TH (makeLenses)
 import Lima.Converter.Internal
 import Text.Read (readMaybe)
+import PyF
 
 -- | A kind of data markers.
 data Mode'
@@ -710,14 +710,14 @@ parseLineToToken Config{_indent, _dedent, _texSingleLineCommentStart, _lhsSingle
 errorExpectedToken :: Int -> Token -> Token -> a
 errorExpectedToken lineNumber lastToken expectedToken =
   error
-    [i|
-      Wrong state at line: #{lineNumber}.
-
-      Expected last token: #{constructorName expectedToken}.
-
-      Got last token: #{lastToken}.
-
-      Please, create an issue in the package repository.
+    [fmt|
+      Wrong state at line: {lineNumber}.
+      
+      Expected last token: {constructorName expectedToken}.
+      
+      Got last token: {show lastToken}.
+      
+      Please create an issue in the package repository.
     |]
 
 errorNotEnoughTokens :: Format -> a

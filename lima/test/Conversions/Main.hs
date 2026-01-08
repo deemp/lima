@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -fplugin Debug.Breakpoint #-}
 
 import Data.List.NonEmpty (NonEmpty (..))
-import Data.String.Interpolate (i)
+import PyF (fmt)
 import Data.Text qualified as T
 import Data.Text.IO qualified as T
 import Hedgehog (Gen, MonadGen, MonadTest, Property, property, tripping)
@@ -51,14 +51,14 @@ selectDialectName = \case
 
 testDialectWrite :: FilePath -> Tokens -> Format -> TestTree
 testDialectWrite dir tokens format =
-  testCase [i|Write #{showFormatName format} code|] do
+  testCase [fmt|Write {showFormatName format} code|] do
     let text = selectFromTokens def format tokens
-    T.writeFile [i|#{dir}/test.#{showFormatExtension format}|] text
+    T.writeFile [fmt|{dir}/test.{showFormatExtension format}|] text
     assertEqual "Roundtrip" tokens (selectToTokens def format text)
 
 writeTokens :: FilePath -> Tokens -> TestTree
 writeTokens dir tokens = testCase "Write tokens to a file" $
-  withFile [i|#{dir}/tokens.hs|] WriteMode $
+  withFile [fmt|{dir}/tokens.hs|] WriteMode $
     \h ->
       pHPrintOpt
         CheckColorTty
@@ -85,11 +85,11 @@ selectFormats = \case
 
 testWrite :: Format -> TestTree
 testWrite format =
-  let dir = [i|#{testDir}/#{showFormatExtension format}|]
+  let dir = [fmt|{testDir}/{showFormatExtension format}|]
    in withResource (createDirectoryIfMissing True dir) pure $
         const $
           testGroup
-            [i|Using #{selectDialectName format} tokens|]
+            [fmt|Using {selectDialectName format} tokens|]
             (testFormatsWrite dir (selectFormats format) (selectTokens format))
 
 alphabet :: MonadGen m => m Char
@@ -197,4 +197,4 @@ testTripping :: Format -> TestTree
 testTripping format =
   let ?config = def; ?format = format
    in let ?genCode = selectGenCode format
-       in testProperty [i|Roundtrip #{selectDialectName format} tokens for all formats|] testTrippingTokens
+       in testProperty [fmt|Roundtrip {selectDialectName format} tokens for all formats|] testTrippingTokens
