@@ -78,8 +78,8 @@ Other scenarios, e.g., inlining a document into a document, may require speciali
 
 {- LIMA_INDENT 4 -}
 
-import Lima.Converter (Format (..), convertTo, def)
 import Data.Text.IO qualified as T
+import Lima.Converter (Format (..), convertTo, def)
 
 main :: IO ()
 main = T.readFile "README.hs" >>= T.writeFile "README.md" . (Hs `convertTo` Md) def

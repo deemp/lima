@@ -170,8 +170,8 @@ import GHC.Generics (Generic)
 import Lens.Micro (non, to, (&), (?~), (^.))
 import Lens.Micro.TH (makeLenses)
 import Lima.Converter.Internal
-import Text.Read (readMaybe)
 import PyF
+import Text.Read (readMaybe)
 
 -- | A kind of data markers.
 data Mode'

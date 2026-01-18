@@ -1,7 +1,6 @@
 {-# OPTIONS_GHC -fplugin Debug.Breakpoint #-}
 
 import Data.List.NonEmpty (NonEmpty (..))
-import PyF (fmt)
 import Data.Text qualified as T
 import Data.Text.IO qualified as T
 import Hedgehog (Gen, MonadGen, MonadTest, Property, property, tripping)
@@ -10,6 +9,7 @@ import Hedgehog.Range qualified as Range
 import Lens.Micro ((^.))
 import Lima.Converter
 import Lima.Converter.Internal
+import PyF (fmt)
 import System.Directory (createDirectoryIfMissing)
 import System.IO (IOMode (WriteMode), withFile)
 import Test.Tasty (TestTree, defaultMain, testGroup, withResource)

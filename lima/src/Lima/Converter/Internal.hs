@@ -93,7 +93,6 @@ errorEmptyCommentAt lineNumber =
       <> "However, there are no characters after '{- '.\n\n"
       <> "Please, write there something after '{- '."
 
-
 ------
 -- TeX
 
