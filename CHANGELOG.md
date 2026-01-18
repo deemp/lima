@@ -1,4 +1,4 @@
-# Revision history for LiterateMarkdown
+# Revision history for lima
 
 ## 0.1.0.1 -- 2020-08-29
 
