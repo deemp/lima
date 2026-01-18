@@ -108,11 +108,18 @@
             };
           };
 
+          cabal = pkgs.cabal-install;
+
           packages = {
             default = hpkgsFinal.lima;
             lima-sdist = (hpkgsFinal.buildFromCabalSdist hpkgsFinal.lima).overrideAttrs (_: {
               pname = "lima-sdist";
             });
+            writeDocs = pkgs.writeShellApplication {
+              name = "writeDocs";
+              runtimeInputs = [ cabal ];
+              text = "cabal test lima:test:readme";
+            };
           };
 
           # Default shell.
@@ -130,7 +137,7 @@
                   expose = true;
 
                   packages = {
-                    cabal = pkgs.cabal-install;
+                    inherit cabal;
                     inherit (pkgs) hpack;
                     inherit (hpkgsFinal) haskell-language-server;
                   };
