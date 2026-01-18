@@ -74,12 +74,12 @@ Other scenarios, e.g., inlining a document into a document, may require speciali
 1. Add `lima` and `text` to its dependencies.
 1. Create a test module. It may have the following content.
 
-   <!-- LIMA_INDENT 4 -->
+   <!-- LIMA_INDENT 3 -->
 
    ```haskell
-   import Lima.Converter (Format (..), convertTo, def)
    import Data.Text.IO qualified as T
-
+   import Lima.Converter (Format (..), convertTo, def)
+   
    main :: IO ()
    main = T.readFile "README.hs" >>= T.writeFile "README.md" . (Hs `convertTo` Md) def
    ```
