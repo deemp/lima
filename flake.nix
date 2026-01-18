@@ -108,6 +108,7 @@
                 inherit inputs pkgs;
                 derivationsAttrs = {
                   inherit (packages) default lima-sdist writeDocs;
+                  formatter = self'.formatter;
                 };
               }).package;
           };
