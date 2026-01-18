@@ -84,7 +84,6 @@
             projectRootFile = "flake.nix";
             programs = {
               nixfmt.enable = true;
-              hlint.enable = true;
               shellcheck.enable = true;
               fourmolu.enable = true;
               prettier.enable = true;
@@ -93,13 +92,12 @@
               excludes = [
                 ".envrc"
               ];
-              formatter = rec {
+              formatter = {
                 fourmolu.excludes = [
                   "**/*.cabal"
                   "**/Setup.hs"
                   "**/testdata/**/*.hs"
                 ];
-                hlint.excludes = fourmolu.excludes;
               };
             };
           };
