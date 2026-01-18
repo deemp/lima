@@ -115,6 +115,12 @@
 
           cabal = pkgs.cabal-install;
 
+          ghc = builtins.head (
+            builtins.filter (
+              x: pkgs.lib.attrsets.isDerivation x && pkgs.lib.strings.hasPrefix "ghc-" x.name
+            ) config.haskellProjects.default.outputs.devShell.nativeBuildInputs
+          );
+
           packages = {
             default = hpkgsFinal.lima;
             lima-sdist = (hpkgsFinal.buildFromCabalSdist hpkgsFinal.lima).overrideAttrs (_: {
@@ -122,7 +128,10 @@
             });
             writeDocs = pkgs.writeShellApplication {
               name = "writeDocs";
-              runtimeInputs = [ cabal ];
+              runtimeInputs = [
+                cabal
+                ghc
+              ];
               text = "cabal test lima:test:readme";
             };
           };
