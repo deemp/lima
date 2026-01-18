@@ -12,6 +12,10 @@
       url = "github:numtide/treefmt-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    cache-nix-action = {
+      url = "github:nix-community/cache-nix-action";
+      flake = false;
+    };
   };
 
   outputs =
@@ -32,7 +36,9 @@
           pkgs,
           ...
         }:
-        {
+        let
+          hpkgsFinal = config.haskellProjects.default.outputs.finalPackages;
+
           # Our only Haskell project. You can have multiple projects, but this template
           # has only one.
           # See https://github.com/srid/haskell-flake/blob/master/example/flake.nix
@@ -58,6 +64,9 @@
               hoogle = false;
               tools = hp: {
                 hlint = null;
+                ghcid = null;
+                cabal-install = null;
+                haskell-language-server = null;
               };
             };
 
@@ -91,6 +100,19 @@
             };
           };
 
+          legacyPackages = {
+            saveFromGC = import "${inputs.cache-nix-action.outPath}/saveFromGC.nix" {
+              inherit inputs pkgs;
+            };
+          };
+
+          packages = {
+            default = hpkgsFinal.lima;
+            lima-sdist = (hpkgsFinal.buildFromCabalSdist hpkgsFinal.lima).overrideAttrs (_: {
+              pname = "lima-sdist";
+            });
+          };
+
           # Default shell.
           devshells.default = {
             packagesFrom = [
@@ -104,17 +126,36 @@
               tools = [
                 {
                   expose = true;
-                  packages =
-                    let
-                      hp = config.haskellProjects.default.outputs.finalPackages;
-                    in
-                    {
-                      inherit (hp) hpack cabal-install;
-                    };
+
+                  packages = {
+                    cabal = pkgs.cabal-install;
+                    inherit (pkgs) hpack;
+                    inherit (hpkgsFinal) haskell-language-server;
+                  };
+                }
+              ];
+
+              packages = [
+                {
+                  prefix = "nix run .#";
+
+                  packages = {
+                    inherit (hpkgsFinal) lima;
+                    inherit (packages) lima-sdist;
+                  };
                 }
               ];
             };
           };
+        in
+        {
+          inherit
+            haskellProjects
+            treefmt
+            legacyPackages
+            packages
+            devshells
+            ;
         };
     };
 
