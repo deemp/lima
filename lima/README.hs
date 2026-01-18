@@ -76,7 +76,7 @@ Other scenarios, e.g., inlining a document into a document, may require speciali
 1. Create a test module. It may have the following content.
 -}
 
-{- LIMA_INDENT 4 -}
+{- LIMA_INDENT 3 -}
 
 import Data.Text.IO qualified as T
 import Lima.Converter (Format (..), convertTo, def)
@@ -127,17 +127,17 @@ cabal build
 
 1. Run a devshell and build `lima` using the project's `cabal`:
 
-    ```console
-    nix develop nix-dev/
-    cabal build
-    ```
+   ```console
+   nix develop nix-dev/
+   cabal build
+   ```
 
 1. Optionally, start `VSCodium`:
 
-    ```console
-    nix run nix-dev/#writeSettings
-    nix run nix-dev/#codium .
-    ```
+   ```console
+   nix run nix-dev/#writeSettings
+   nix run nix-dev/#codium .
+   ```
 
 1. Open a `Haskell` file there, hover over a term and wait until `HLS` shows hints.
 
