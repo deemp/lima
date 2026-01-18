@@ -90,10 +90,14 @@
               prettier.enable = true;
             };
             settings = {
+              excludes = [
+                ".envrc"
+              ];
               formatter = rec {
                 fourmolu.excludes = [
                   "**/*.cabal"
                   "**/Setup.hs"
+                  "**/testdata/**/*.hs"
                 ];
                 hlint.excludes = fourmolu.excludes;
               };
