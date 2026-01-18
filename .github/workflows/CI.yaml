@@ -61,6 +61,6 @@ jobs:
       - name: Build lima
         run: nix build .#lima
       - name: Build lima sdist
-        run: nix build .#sdist
+        run: nix build .#lima-sdist
       - name: Save from GC
         run: nix profile install .#saveFromGC
