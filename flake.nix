@@ -103,9 +103,13 @@
           };
 
           legacyPackages = {
-            saveFromGC = import "${inputs.cache-nix-action.outPath}/saveFromGC.nix" {
-              inherit inputs pkgs;
-            };
+            saveFromGC =
+              (import "${inputs.cache-nix-action.outPath}/saveFromGC.nix" {
+                inherit inputs pkgs;
+                derivationsAttrs = {
+                  inherit (packages) default lima-sdist writeDocs;
+                };
+              }).package;
           };
 
           cabal = pkgs.cabal-install;
